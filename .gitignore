@@ -1,0 +1,7 @@
+test
+logs
+config/config.json
+build
+dist
+config
+*.spec
