@@ -6,7 +6,7 @@ from tkinter import scrolledtext
 import webbrowser as wb
 import requests
 import xmltodict
-from json import load
+from json import load, dump
 from os import path, makedirs
 
 #Checks if the folder config exists in current directory
@@ -16,53 +16,22 @@ if not path.exists("config"):
     f = open("config/config.json", "w")
     f.write("{\"API_KEY\":\"BASIC YOUR_AUTHENTICATION_KEY_HERE\",\"QUALYS_PLATFORM\":\"YOUR_QUALYS_PLATFORM_HERE\",\"LOGIN_URL\":\"https://YOUR_LOGIN_URL_HERE\",\"SNOW_URL\":\"YOUR_SNOW_URL_HERE\",\"SCANNER_APPLIANCE\":\"scanner1,scanner2,...\"}")
     f.close()
-    raise RuntimeError("Please update the default config/config.json file!")
-
-def get_API_key():
-    with open("config/config.json") as config_file:
-        config = load(config_file)
-        if config["API_KEY"]== "BASIC YOUR_AUTHENTICATION_KEY_HERE":
-            raise RuntimeError("Please update the default config/config.json file!")
-        return config["API_KEY"]
-
-def get_Qualys_Platform():
-    with open("config/config.json") as config_file:
-        config = load(config_file)
-        if config["QUALYS_PLATFORM"]== "YOUR_QUALYS_PLATFORM_HERE":
-            raise RuntimeError("Please update the default config/config.json file!")
-        return config["QUALYS_PLATFORM"]
-    
-def get_LOGIN_url():
-    with open("config/config.json") as config_file:
-        config = load(config_file)
-        if config["LOGIN_URL"]== "https://YOUR_LOGIN_URL_HERE":
-            raise RuntimeError("Please update the default config/config.json file!")
-        return config["LOGIN_URL"]
-
-def get_Scanner_Appliance():
-    with open("config/config.json") as config_file:
-        config = load(config_file)
-        if config["SCANNER_APPLIANCE"] == "scanner1, scanner2, ...":
-            raise RuntimeError("Please update the default config/config.json file!")
-        return config["SCANNER_APPLIANCE"]
-
-def get_SNOW_url():
-    with open("config/config.json") as config_file:
-        config = load(config_file)
-        if config["SNOW_URL"] == "YOUR_SNOW_URL_HERE":
-            raise RuntimeError("Please update the default config/config.json file!")
-        return config["SNOW_URL"]
-
  
+def getConfig():
+    with open("config/config.json") as config_file:
+        config = load(config_file)
+        return config
 
 #Global variables
+CONFIG = getConfig()
 VITLIST = []
-POPUPS = []
-API_KEY = get_API_key()
-QUALYS_PLATFORM = get_Qualys_Platform()
-LOGIN_URL = get_LOGIN_url()
-SCANNER_APPLIANCE = get_Scanner_Appliance()
-SNOW_URL = get_SNOW_url()
+CLOSE_VIT_POPUPS = []
+SETTINGS_POPUPS = []
+API_KEY = CONFIG["API_KEY"]
+QUALYS_PLATFORM = CONFIG["QUALYS_PLATFORM"]
+LOGIN_URL = CONFIG["LOGIN_URL"]
+SCANNER_APPLIANCE = CONFIG["SCANNER_APPLIANCE"]
+SNOW_URL = CONFIG["SNOW_URL"]
 
 #grabs qid from listbox object
 def get_qids():
@@ -251,14 +220,14 @@ def open_vmdr():
 
 def open_vits_fixed():
     #Allows for only 1 popup at a time
-    global POPUPS
+    global CLOSE_VIT_POPUPS
 
     def close_popup():
-        global POPUPS
-        POPUPS[0].destroy()
-        POPUPS.clear()
+        global CLOSE_VIT_POPUPS
+        CLOSE_VIT_POPUPS[0].destroy()
+        CLOSE_VIT_POPUPS.clear()
 
-    if len(POPUPS) == 1:
+    if len(CLOSE_VIT_POPUPS) == 1:
         close_popup()
     
     #Ensures pop up isn't hidden behind program
@@ -270,7 +239,7 @@ def open_vits_fixed():
     popup.after_idle(popup.attributes, "-topmost", False)
 
     #Creates a GUI showcasing the VITs fixed
-    listbox = tk.Listbox(popup, width=30, height=20, background = "#343638", foreground = "white")
+    listbox = tk.Listbox(popup, width=30, height=20, background = GREY, foreground = "white")
     listbox.pack(padx=10, pady=5)
 
     vitsFixed = retrieveAssetDetection(",".join(ips_listbox.get(0, "end")), ",".join(get_qids()), "Fixed")
@@ -280,7 +249,7 @@ def open_vits_fixed():
     label = ctk.CTkLabel(popup, text="The above VITs are labeled\nas FIXED in VMDR")
     label.pack(pady=5)
 
-    POPUPS.append(popup)
+    CLOSE_VIT_POPUPS.append(popup)
     #Opens SNOW VIT Table allowing for easy closing of VITs
     wb.open(f"https://{SNOW_URL}/sn_vul_vulnerable_item_list.do?sysparm_query=active%3Dtrue%5EnumberIN"+"%2C".join(vitsFixed)+"&sysparm_first_row=1&sysparm_view=")
 
@@ -338,6 +307,135 @@ def retrieveAssetDetection(ips, qids, status):
     fixedVits = list(set(fixedVits))
     return fixedVits
 
+def doesIPHaveCloudAgent(ip):
+    url = f"https://qualysapi.{QUALYS_PLATFORM}/qps/rest/2.0/search/am/hostasset"
+    
+    payload = f'<ServiceRequest><filters><Criteria field="address" operator="EQUALS">{ip}</Criteria><Criteria field="trackingMethod" operator="EQUALS">QAGENT</Criteria></filters></ServiceRequest>'
+
+    headers = {
+        'X-Requested-With': 'RescanHelperAPI',
+        'Authorization': API_KEY
+    }
+
+    response = requests.post(url, headers=headers, data=payload)
+
+    if(response.status_code != 200):
+        print(f"Error bad response\nCode: {response.status_code}\nMessage: {response.text}")
+        return []
+
+    #This only occurs when the search query returns a cloud agent count of 0
+    if(len(response.text) < 300):
+        return False
+    else:
+        return True
+
+def configIsDefault():
+    defaultConfig = False
+    with open("config/config.json") as config_file:
+        config = load(config_file)
+        if config["API_KEY"]== "BASIC YOUR_AUTHENTICATION_KEY_HERE":
+            defaultConfig = True    
+        elif config["QUALYS_PLATFORM"]== "YOUR_QUALYS_PLATFORM_HERE":
+            defaultConfig = True
+        elif config["LOGIN_URL"]== "https://YOUR_LOGIN_URL_HERE":
+            defaultConfig = True
+        elif config["SCANNER_APPLIANCE"] == "scanner1, scanner2, ...":
+            defaultConfig = True
+        elif config["SNOW_URL"] == "YOUR_SNOW_URL_HERE":
+            defaultConfig = True
+    return defaultConfig
+
+def openSettings():
+    #Allows for only 1 popup at a time
+    global SETTINGS_POPUPS, API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
+
+    #updates all global variables and saves to config file
+    def saveConfig():
+        global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
+        with open("config/config.json", "w") as config_file:
+            API_KEY = api_key_entry.get()
+            QUALYS_PLATFORM = qualys_platform_entry.get()
+            LOGIN_URL = login_url_entry.get()
+            SCANNER_APPLIANCE = ",".join(scanner_appliance_listbox.get(0,"end"))
+            SNOW_URL = snow_url_entry.get()
+
+            CONFIG = {'API_KEY':API_KEY, 'QUALYS_PLATFORM':QUALYS_PLATFORM, 'LOGIN_URL':LOGIN_URL, 'SCANNER_APPLIANCE':SCANNER_APPLIANCE, 'SNOW_URL':SNOW_URL}
+            dump(CONFIG, config_file, indent=4)
+
+    def close_popup():
+        global SETTINGS_POPUPS
+        SETTINGS_POPUPS[0].destroy()
+        SETTINGS_POPUPS.clear()
+
+    if len(SETTINGS_POPUPS) == 1:
+        close_popup()
+
+ 
+    #Ensures pop up isn't hidden behind program
+    popup = ctk.CTkToplevel()
+    popup.protocol("WM_DELETE_WINDOW", close_popup)
+    popup.title("Settings")
+    popup.after(250, lambda: popup.lift())
+    popup.attributes("-topmost", True)
+    popup.after_idle(popup.attributes, "-topmost", False)
+    
+    top_ribbon_label = ctk.CTkLabel(popup, text="Settings", font=("Arial",20,"bold"))
+    top_ribbon_label.pack(pady = 5)
+
+    entriesFrame = ctk.CTkFrame(popup, fg_color=GREY_DARK)
+    entriesFrame.pack(pady=10)
+    #Label and their corresponding entry field
+    api_key_label = ctk.CTkLabel(entriesFrame, text="API Key:")
+    api_key_label.grid(row=0, column=0, padx=10)
+    api_key_entry = ctk.CTkEntry(entriesFrame, width=300)
+    api_key_entry.insert(0, API_KEY)
+    api_key_entry.grid(row=0, column=1, padx=10, pady=5)
+
+    qualys_platform_label = ctk.CTkLabel(entriesFrame, text="Qualys Platform:")
+    qualys_platform_label.grid(row=1, column=0, padx=10)
+    qualys_platform_entry = ctk.CTkEntry(entriesFrame, width=300)
+    qualys_platform_entry.insert(0, QUALYS_PLATFORM)
+    qualys_platform_entry.grid(row=1, column=1, padx=10, pady=5)
+
+    login_url_label = ctk.CTkLabel(entriesFrame, text="Login URL:")
+    login_url_label.grid(row=2, column=0, padx=10)
+    login_url_entry = ctk.CTkEntry(entriesFrame, width=300)
+    login_url_entry.insert(0, LOGIN_URL)
+    login_url_entry.grid(row=2, column=1, padx=10, pady=5)
+    
+    snow_url_label = ctk.CTkLabel(entriesFrame, text="SNOW URL:")
+    snow_url_label.grid(row=3, column=0, padx=10)
+    snow_url_entry = ctk.CTkEntry(entriesFrame, width=300)
+    snow_url_entry.insert(0, SNOW_URL)
+    snow_url_entry.grid(row=3, column=1, padx=10, pady=5)
+
+    scanner_appliance_label = ctk.CTkLabel(entriesFrame, text="Scanner Appliance:")
+    scanner_appliance_label.grid(row=4, column=0, padx=10)
+    scanner_appliance_listbox = tk.Listbox(entriesFrame, width=49, selectmode="multiple", background=GREY, foreground=WHITE)
+    scanner_appliance_listbox.grid(row=5, column=1, padx=10, pady=5)
+    scanner_appliance_add_entry = ctk.CTkEntry(entriesFrame, width=300, placeholder_text="Enter scanner appliance name")
+    scanner_appliance_add_entry.grid(row=4, column=1, padx=10, pady=5)
+    scanner_appliance_add_button = ctk.CTkButton(entriesFrame, text="+", command=lambda: add_entry(scanner_appliance_listbox, scanner_appliance_add_entry), fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=30)
+    scanner_appliance_add_button.grid(row=4, column=2, padx=5, pady=5)
+    scanner_appliance_remove_button = ctk.CTkButton(entriesFrame, text="-", command=lambda: remove_entry(scanner_appliance_listbox), fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK, width=30)
+    scanner_appliance_remove_button.grid(row=5, column=2, padx=5, pady=5)
+
+    for scanner in SCANNER_APPLIANCE.split(","):
+        scanner_appliance_listbox.insert(0,scanner)
+    
+    button_frame = ctk.CTkFrame(popup)
+    button_frame.pack(pady=5)
+    apply_button = ctk.CTkButton(button_frame, text="Apply", command=saveConfig, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    apply_button.grid(row = 0, column = 0, padx = 10, pady=5)
+
+    def okButton():
+        saveConfig()
+        close_popup()
+    
+    ok_button = ctk.CTkButton(button_frame, text="OK", command=okButton, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    ok_button.grid(row = 0, column = 1, padx=10)
+    SETTINGS_POPUPS.append(popup)
+
 #Easy to edit and read HEX values of colors used in the GUI
 PURPLE = "#8026FF"
 PURPLE_DARK = "#402491"
@@ -347,18 +445,23 @@ BLUE = "#0091DA"
 BLUE_DARK = "#00598A"
 GREEN = "#4FB947"
 GREEN_DARK = "#397934"
+WHITE = "#FFFFFF"
+BLACK = "#000000"
+GREY = "#343638"
+GREY_DARK = "#242424"
 
 # Initialize the main window
 root = ctk.CTk()
-root.geometry("500x800")
 root.title("Rescan Helper")
 
 # Initialize CustomTkinter
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
 
+top_ribbon_label = ctk.CTkLabel(root, text="Rescan Helper", font=("Arial",20,"bold"))
+top_ribbon_label.pack(pady = 5)
 # Create a scrolled text area
-text_area = scrolledtext.ScrolledText(root, wrap="word", width=55, height=6, background = "#343638", foreground = "white")
+text_area = scrolledtext.ScrolledText(root, wrap="word", width=55, height=6, background = GREY, foreground = "white")
 text_area.insert("1.0", "Paste email's contents here")
 text_area.pack(padx=10, pady=10)
 
@@ -367,58 +470,58 @@ button_frame = ctk.CTkFrame(root)
 button_frame.pack(pady=10)
 
 # Create the buttons
-button_vits = ctk.CTkButton(button_frame, text="Look up VIT(s)", command=lookUpVITs, fg_color=PURPLE, border_width=2, border_color="#000000", hover_color=PURPLE_DARK)
+button_vits = ctk.CTkButton(button_frame, text="Look up VIT(s)", command=lookUpVITs, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_vits.grid(row=0, column=0, padx=10, pady=5)
 
-button_qids_ips = ctk.CTkButton(button_frame, text="Look up QID(s) and IP(s)", command=lookUpQIDsAndIPs, fg_color=PURPLE, border_width=2, border_color="#000000", hover_color=PURPLE_DARK)
+button_qids_ips = ctk.CTkButton(button_frame, text="Look up QID(s) and IP(s)", command=lookUpQIDsAndIPs, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_qids_ips.grid(row=0, column=1, padx=10)
 
 # Create a frame for the list boxes and their controls
 list_frame = ctk.CTkFrame(root)
-list_frame.pack(pady=10)
+list_frame.pack(pady=10, padx=20)
 
 # VITs list box and controls
-vits_listbox = tk.Listbox(list_frame, width=20, height=10, background = "#343638", foreground = "white")
+vits_listbox = tk.Listbox(list_frame, width=20, height=10, background = GREY, foreground = "white", selectmode="multiple")
 vits_listbox.grid(row=0, column=0, padx=10)
 vits_label = ctk.CTkLabel(list_frame, text="VIT(s)")
 vits_label.grid(row=1, column=0, padx=10, pady=5)
 vits_add_entry = ctk.CTkEntry(list_frame)
 vits_add_entry.grid(row=2, column=0, padx=10, pady=5)
-vits_add_button = ctk.CTkButton(list_frame, text="Add", command=lambda: add_entry(vits_listbox, vits_add_entry), fg_color=GREEN, border_width=2, border_color="#000000", hover_color=GREEN_DARK)
+vits_add_button = ctk.CTkButton(list_frame, text="Add", command=lambda: add_entry(vits_listbox, vits_add_entry), fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK)
 vits_add_button.grid(row=3, column=0, padx=10, pady=5)
-vits_remove_button = ctk.CTkButton(list_frame, text="Remove", command=lambda: remove_entry(vits_listbox), fg_color=RED, border_width=2, border_color="#000000", hover_color=RED_DARK)
+vits_remove_button = ctk.CTkButton(list_frame, text="Remove", command=lambda: remove_entry(vits_listbox), fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK)
 vits_remove_button.grid(row=4, column=0, padx=10, pady=5)
-vits_copy_button = ctk.CTkButton(list_frame, text="Copy", command=lambda: copy(", ".join(vits_listbox.get(0,"end"))), fg_color=BLUE, border_width=2, border_color="#000000", hover_color=BLUE_DARK)
+vits_copy_button = ctk.CTkButton(list_frame, text="Copy", command=lambda: copy(", ".join(vits_listbox.get(0,"end"))), fg_color=BLUE, border_width=2, border_color=BLACK, hover_color=BLUE_DARK)
 vits_copy_button.grid(row=5,column=0, padx=10, pady=5)
 
 
 # QIDs list box and controls
-qids_listbox = tk.Listbox(list_frame, width=20, height=10, background = "#343638", foreground = "white")
+qids_listbox = tk.Listbox(list_frame, width=20, height=10, background = GREY, foreground = "white", selectmode="multiple")
 qids_listbox.grid(row=0, column=1, padx=10)
 qids_label = ctk.CTkLabel(list_frame, text="QID(s)")
 qids_label.grid(row=1, column=1, padx=10, pady=5)
 qids_add_entry = ctk.CTkEntry(list_frame)
 qids_add_entry.grid(row=2, column=1, padx=10, pady=5)
-qids_add_button = ctk.CTkButton(list_frame, text="Add", command=lambda: add_entry(qids_listbox, qids_add_entry), fg_color=GREEN, border_width=2, border_color="#000000", hover_color=GREEN_DARK)
+qids_add_button = ctk.CTkButton(list_frame, text="Add", command=lambda: add_entry(qids_listbox, qids_add_entry), fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK)
 qids_add_button.grid(row=3, column=1, padx=10, pady=5)
-qids_remove_button = ctk.CTkButton(list_frame, text="Remove", command=lambda: remove_entry(qids_listbox), fg_color=RED, border_width=2, border_color="#000000", hover_color=RED_DARK)
+qids_remove_button = ctk.CTkButton(list_frame, text="Remove", command=lambda: remove_entry(qids_listbox), fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK)
 qids_remove_button.grid(row=4, column=1, padx=10, pady=5)
-qids_copy_button = ctk.CTkButton(list_frame, text="Copy", command=lambda: copy(", ".join(qids_listbox.get(0,"end"))), fg_color=BLUE, border_width=2, border_color="#000000", hover_color=BLUE_DARK)
+qids_copy_button = ctk.CTkButton(list_frame, text="Copy", command=lambda: copy(", ".join(qids_listbox.get(0,"end"))), fg_color=BLUE, border_width=2, border_color=BLACK, hover_color=BLUE_DARK)
 qids_copy_button.grid(row=5,column=1, padx=10, pady=5)
 
 
 # IPs list box and controls
-ips_listbox = tk.Listbox(list_frame, width=20, height=10, background = "#343638", foreground = "white")
+ips_listbox = tk.Listbox(list_frame, width=20, height=10, background = GREY, foreground = "white", selectmode="multiple")
 ips_listbox.grid(row=0, column=2, padx=10)
 ips_label = ctk.CTkLabel(list_frame, text="IP(s)")
 ips_label.grid(row=1, column=2, padx=10, pady=5)
 ips_add_entry = ctk.CTkEntry(list_frame)
 ips_add_entry.grid(row=2, column=2, padx=10, pady=5)
-ips_add_button = ctk.CTkButton(list_frame, text="Add", command=lambda: add_entry(ips_listbox, ips_add_entry), fg_color=GREEN, border_width=2, border_color="#000000", hover_color=GREEN_DARK)
+ips_add_button = ctk.CTkButton(list_frame, text="Add", command=lambda: add_entry(ips_listbox, ips_add_entry), fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK)
 ips_add_button.grid(row=3, column=2, padx=10, pady=5)
-ips_remove_button = ctk.CTkButton(list_frame, text="Remove", command=lambda: remove_entry(ips_listbox), fg_color=RED, border_width=2, border_color="#000000", hover_color=RED_DARK)
+ips_remove_button = ctk.CTkButton(list_frame, text="Remove", command=lambda: remove_entry(ips_listbox), fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK)
 ips_remove_button.grid(row=4, column=2, padx=10, pady=5)
-ips_copy_button = ctk.CTkButton(list_frame, text="Copy", command=lambda: copy(", ".join(ips_listbox.get(0,"end"))), fg_color=BLUE, border_width=2, border_color="#000000", hover_color=BLUE_DARK)
+ips_copy_button = ctk.CTkButton(list_frame, text="Copy", command=lambda: copy(", ".join(ips_listbox.get(0,"end"))), fg_color=BLUE, border_width=2, border_color=BLACK, hover_color=BLUE_DARK)
 ips_copy_button.grid(row=5,column=2, padx=10, pady=5)
 
 # Create a frame for the buttons
@@ -426,16 +529,16 @@ button_frame2 = ctk.CTkFrame(root)
 button_frame2.pack(pady=10)
 
 #Buttons
-button_login = ctk.CTkButton(button_frame2, text="Login to Qualys", command=lambda: wb.open(LOGIN_URL), fg_color=PURPLE, border_width=2, border_color="#000000", hover_color=PURPLE_DARK)
+button_login = ctk.CTkButton(button_frame2, text="Login to Qualys", command=lambda: wb.open(LOGIN_URL), fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_login.grid(row=0, column=0, padx=10, pady=5)
 
-button_open_vmdr = ctk.CTkButton(button_frame2, text="Open VMDR", command=open_vmdr, fg_color=PURPLE, border_width=2, border_color="#000000", hover_color=PURPLE_DARK)
+button_open_vmdr = ctk.CTkButton(button_frame2, text="Open VMDR", command=open_vmdr, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_open_vmdr.grid(row=0, column=1, padx=10)
 
-button_copy_email = ctk.CTkButton(button_frame2, text="Email copy paste", command=lambda: copy("VIT(s) closed, vulnerabilities have been fixed according to rescan."), fg_color=PURPLE, border_width=2, border_color="#000000", hover_color=PURPLE_DARK)
+button_copy_email = ctk.CTkButton(button_frame2, text="Email copy paste", command=lambda: copy("VIT(s) closed, vulnerabilities have been fixed according to rescan."), fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_copy_email.grid(row=1, column=0, pady=5, padx=10)
 
-button_get_vits_to_close = ctk.CTkButton(button_frame2, text="Get VITs to close", command=open_vits_fixed, fg_color=PURPLE, border_width=2, border_color="#000000", hover_color=PURPLE_DARK)
+button_get_vits_to_close = ctk.CTkButton(button_frame2, text="Get VITs to close", command=open_vits_fixed, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_get_vits_to_close.grid(row=1, column=1, pady=5, padx=10)
 
 # Create a frame for the dropdown and launch scan button
@@ -456,9 +559,11 @@ scan_type_dropdown = ctk.CTkOptionMenu(bottom_frame, variable=scan_type_var, val
 scan_type_dropdown.grid(row=1, column=1, padx=10, pady=5)
 
 # Create the launch scan button
-button_launch_scan = ctk.CTkButton(bottom_frame, text="Launch scan", command=launchScan, fg_color=RED, border_width=2, border_color="#000000", hover_color=RED_DARK)
+button_launch_scan = ctk.CTkButton(bottom_frame, text="Launch scan", command=launchScan, fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK)
 button_launch_scan.grid(row=3, column=1, padx=10, pady=5)
 
+settingsButton = ctk.CTkButton(root, text="⚙️", command=openSettings, fg_color =GREY, border_width=1, border_color=WHITE, hover_color=GREY_DARK, width=15)
+settingsButton.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=5)
 
 # Run the application
 root.mainloop() 
