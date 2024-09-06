@@ -27,11 +27,13 @@ CONFIG = getConfig()
 VITLIST = []
 CLOSE_VIT_POPUPS = []
 SETTINGS_POPUPS = []
+SCAN_SETTINGS_POPUPS = []
 API_KEY = CONFIG["API_KEY"]
 QUALYS_PLATFORM = CONFIG["QUALYS_PLATFORM"]
 LOGIN_URL = CONFIG["LOGIN_URL"]
 SCANNER_APPLIANCE = CONFIG["SCANNER_APPLIANCE"]
 SNOW_URL = CONFIG["SNOW_URL"]
+SCAN_LIST = CONFIG["SCAN_LIST"]
 
 #grabs qid from listbox object
 def get_qids():
@@ -40,13 +42,11 @@ def get_qids():
         qidNumbers.append(qid[4:])
     return qidNumbers
 
-def updateSearchList():
+def updateSearchList(id):
     print("Updating search list...")
     url = f"https://qualysapi.{QUALYS_PLATFORM}/api/2.0/fo/qid/search_list/static/"
 
-    # IF YOU EVER WANT TO CHANGE THE SEARCH LIST THAT GETS UPDATED THEN YOU WILL WANT TO CHANGE THIS VARIABLE
-    SEARCH_LIST_ID = '9275783'
-    payload = {'action': 'update', 'id': SEARCH_LIST_ID, 'qids': ",".join(get_qids())}
+    payload = {'action': 'update', 'id': id, 'qids': ",".join(get_qids())}
 
     headers = {
     'X-Requested-With': 'RescanHelperAPI',
@@ -88,7 +88,7 @@ def launchScanHelper(title, option, appliances, ips):
 
 # is the launch scan button function
 def launchScan():
-
+    global SCAN_LIST
     ips_arr = ips_listbox.get(0, "end")
 
     if len(ips_arr) == 0:
@@ -99,44 +99,24 @@ def launchScan():
         print("Error empty title, scan canceled")
         return -2
     
+    scan = SCAN_LIST[scan_type_var.get()]
     #Check the scan type the user selected then launch that scan
-    if scan_type_var.get() == "Custom QID(s)":
-        print("Running Custom QID(s) scan...")
+    if scan["SEARCH_LIST_ID"] != "NULL":
 
         #Checks if all required fields are filled out
         if len(qids_listbox.get(0, "end")) == 0:
             print("No QIDs detected, scan canceled")
             return -3
-        if updateSearchList() == -1:
+        if updateSearchList(scan["SEARCH_LIST_ID"]) == -1:
             print("Scan canceled.")
             return -4
         
-        CUSTOM_QID_OPTION_ID = '9747295'
-
-        #Launch scan with selected scanner appliance group
-        if launchScanHelper(title_entry.get(), CUSTOM_QID_OPTION_ID, SCANNER_APPLIANCE, ips_arr) == -1:
-            return -5
-
-    elif scan_type_var.get() == "Internal Default":
-        print("Running internal default...")
-        
-        DEFAULT_OPTION_ID = '9344931'
-
-        #Launch scan with selected scanner appliance group
-        if launchScanHelper(title_entry.get(), DEFAULT_OPTION_ID, SCANNER_APPLIANCE, ips_arr) == -1:
-            return -5
-
-    elif scan_type_var.get() == "Dead Host":
-        print("running dead host...")
-
-        DEAD_HOST_OPTION_ID = '9631208'
-
-        #Launch scan with selected scanner appliance group
-        if launchScanHelper(title_entry.get(), DEAD_HOST_OPTION_ID, SCANNER_APPLIANCE, ips_arr) == -1:
-            return -5
+    #Launch scan with selected scanner appliance group
+    if launchScanHelper(title_entry.get(), scan["OP_ID"], SCANNER_APPLIANCE, ips_arr) == -1:
+        return -5
         
     wb.open(f"https://qualysguard.{QUALYS_PLATFORM}/fo/scan/scanList.php")
-    print("Scan completed!")
+    print("Scan launched!")
     return 0
 
 def lookUpVITs():
@@ -148,7 +128,7 @@ def lookUpVITs():
 
 def lookUpQIDsAndIPs():
     global VITLIST 
-    text = text_area.get("1.0", "end").split("Integration runSort in ascending order\n")
+    text = text_area.get("1.0", "end").split("Integration run\n")
     if len(text) == 1:
         print("Error table wasn't copied properly!\nTo add QIDs and IPs with no VIT attached, please use the buttons under the listboxes.")
         return 
@@ -347,11 +327,11 @@ def configIsDefault():
 
 def openSettings():
     #Allows for only 1 popup at a time
-    global SETTINGS_POPUPS, API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
+    global SETTINGS_POPUPS, API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
 
     #updates all global variables and saves to config file
     def saveConfig():
-        global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
+        global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
         with open("config/config.json", "w") as config_file:
             API_KEY = api_key_entry.get()
             QUALYS_PLATFORM = qualys_platform_entry.get()
@@ -359,7 +339,7 @@ def openSettings():
             SCANNER_APPLIANCE = ",".join(scanner_appliance_listbox.get(0,"end"))
             SNOW_URL = snow_url_entry.get()
 
-            CONFIG = {'API_KEY':API_KEY, 'QUALYS_PLATFORM':QUALYS_PLATFORM, 'LOGIN_URL':LOGIN_URL, 'SCANNER_APPLIANCE':SCANNER_APPLIANCE, 'SNOW_URL':SNOW_URL}
+            CONFIG = {'API_KEY':API_KEY, 'QUALYS_PLATFORM':QUALYS_PLATFORM, 'LOGIN_URL':LOGIN_URL, 'SCANNER_APPLIANCE':SCANNER_APPLIANCE, 'SNOW_URL':SNOW_URL, 'SCAN_LIST':SCAN_LIST}
             dump(CONFIG, config_file, indent=4)
 
     def close_popup():
@@ -435,6 +415,141 @@ def openSettings():
     ok_button = ctk.CTkButton(button_frame, text="OK", command=okButton, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     ok_button.grid(row = 0, column = 1, padx=10)
     SETTINGS_POPUPS.append(popup)
+
+def openScanSettings():
+    global SCAN_SETTINGS_POPUPS, API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
+    #updates all global variables and saves to config file
+    scans = SCAN_LIST.copy()
+    def saveConfig():
+        global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
+        add_modify_entry()
+        SCAN_LIST = scans
+        with open("config/config.json", "w") as config_file:
+            refresh_scan_display()
+            CONFIG = {'API_KEY':API_KEY, 'QUALYS_PLATFORM':QUALYS_PLATFORM, 'LOGIN_URL':LOGIN_URL, 'SCANNER_APPLIANCE':SCANNER_APPLIANCE, 'SNOW_URL':SNOW_URL, 'SCAN_LIST':SCAN_LIST}
+            dump(CONFIG, config_file, indent=4)
+
+    def close_popup():
+        global SCAN_SETTINGS_POPUPS
+        SCAN_SETTINGS_POPUPS[0].destroy()
+        SCAN_SETTINGS_POPUPS.clear()
+        refresh_scan_display()
+
+    if len(SCAN_SETTINGS_POPUPS) == 1:
+        close_popup()
+
+ 
+    #Ensures pop up isn't hidden behind program
+    popup = ctk.CTkToplevel()
+    popup.protocol("WM_DELETE_WINDOW", close_popup)
+    popup.title("Scan Settings")
+    popup.after(250, lambda: popup.lift())
+    popup.attributes("-topmost", True)
+    popup.after_idle(popup.attributes, "-topmost", False)
+    
+    top_ribbon_label = ctk.CTkLabel(popup, text="Scan Settings", font=("Arial",20,"bold"))
+    top_ribbon_label.pack(pady = 5)
+
+    entriesFrame = ctk.CTkFrame(popup, fg_color=GREY_DARK)
+    entriesFrame.pack(pady=10)
+    
+    #Label and their corresponding entry field
+    name_label = ctk.CTkLabel(entriesFrame, text="Name:")
+    name_label.grid(row=0, column=0, padx=5, pady=5)
+    name_entry = ctk.CTkEntry(entriesFrame)
+    name_entry.grid(row=0, column=1, padx=5, pady=5)
+
+    search_id_label = ctk.CTkLabel(entriesFrame, text="Search List ID:")
+    search_id_label.grid(row=1, column=0, padx=5, pady=5)
+    search_id_entry = ctk.CTkEntry(entriesFrame)
+    search_id_entry.grid(row=1, column=1, padx=5, pady=5)
+
+    op_id_label = ctk.CTkLabel(entriesFrame, text="Option Profile ID:")
+    op_id_label.grid(row=2, column=0, padx=5, pady=5)
+    op_id_entry = ctk.CTkEntry(entriesFrame)
+    op_id_entry.grid(row=2, column=1, padx=5, pady=5)
+
+    # Function to add or modify entries in the scans dictionary
+    def add_modify_entry():
+        name = name_entry.get()
+        search_id = search_id_entry.get()
+        op_id = op_id_entry.get()
+
+        if name and search_id and op_id:
+            scans[name] = {"SEARCH_LIST_ID": search_id, "OP_ID": op_id}
+            refresh_listbox()
+        else:
+            tk.messagebox.showerror("Error", "All fields must be filled!")
+
+    # Function to delete selected entry
+    def delete_entry():
+        selected = scan_listbox.curselection()
+        if selected:
+            name = scan_listbox.get(selected[0])
+            if name in scans:
+                del scans[name]
+                refresh_listbox()
+                temp_scan_names = []
+                for scan_name in scans:
+                    temp_scan_names.append(scan_name)
+
+                name_entry.delete(0, 'end')
+                search_id_entry.delete(0, 'end')
+                op_id_entry.delete(0, 'end')
+                if scans:
+                    name_entry.insert(0, temp_scan_names[0])
+                    search_id_entry.insert(0, scans[temp_scan_names[0]]["SEARCH_LIST_ID"])
+                    op_id_entry.insert(0, scans[temp_scan_names[0]]["OP_ID"])
+        else:
+            tk.messagebox.showerror("Error", "Please select an entry to delete.")
+
+    # Refresh the listbox to show updated scan entries
+    def refresh_listbox():
+        scan_listbox.delete(0, 'end')
+        for name in scans:
+            scan_listbox.insert('end', name)
+
+    def on_listbox_select(event):
+        selected = scan_listbox.curselection()
+        if selected:
+            name = scan_listbox.get(selected[0])
+            if name in scans:
+                # Populate the entry fields with selected entry's data
+                name_entry.delete(0, 'end')
+                name_entry.insert(0, name)
+                search_id_entry.delete(0, 'end')
+                search_id_entry.insert(0, scans[name]["SEARCH_LIST_ID"])
+                op_id_entry.delete(0, 'end')
+                op_id_entry.insert(0, scans[name]["OP_ID"])
+
+    # Buttons for adding, modifying, and deleting entries
+    add_button = ctk.CTkButton(entriesFrame, text="+", command=add_modify_entry, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=30)
+    add_button.grid(row=2, column=2, padx=5, pady=5)
+
+    delete_button = ctk.CTkButton(entriesFrame, text="-", command=delete_entry, fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK, width=30)
+    delete_button.grid(row=3, column=2, padx=5, pady=5)
+
+    # Listbox to show current entries
+    scan_listbox = tk.Listbox(entriesFrame, width=22, height=6, background = GREY, foreground = "white")
+    scan_listbox.grid(row=3, column=1, padx=5, pady=5)
+    
+    scan_listbox.bind("<<ListboxSelect>>", on_listbox_select)
+
+    button_frame = ctk.CTkFrame(popup)
+    button_frame.pack(pady=5)
+    apply_button = ctk.CTkButton(button_frame, text="Apply", command=saveConfig, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    apply_button.grid(row = 0, column = 0, padx = 10, pady=5)
+
+    def okButton():
+        saveConfig()
+        close_popup()
+    
+    ok_button = ctk.CTkButton(button_frame, text="OK", command=okButton, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    ok_button.grid(row = 0, column = 1, padx=10)
+
+    refresh_listbox()
+    SCAN_SETTINGS_POPUPS.append(popup)
+
 
 #Easy to edit and read HEX values of colors used in the GUI
 PURPLE = "#8026FF"
@@ -551,12 +666,28 @@ title_label.grid(row=0, column=0, padx=10)
 title_entry = ctk.CTkEntry(bottom_frame)
 title_entry.grid(row=0, column=1, padx=10, pady=5)
 
+
+scan_types_names = []
+def refresh_scan_display():
+    scan_types_names.clear()
+    for scan_name in SCAN_LIST:
+        scan_types_names.append(scan_name)
+    scan_type_dropdown.configure(values=scan_types_names)
+    if scan_types_names:
+        scan_type_var.set(scan_types_names[0])
+
+
 # Create the dropdown menu
 scan_type_label = ctk.CTkLabel(bottom_frame, text="Scan type:")
 scan_type_label.grid(row=1, column=0, padx=10)
-scan_type_var = ctk.StringVar(value="Custom QID(s)")
-scan_type_dropdown = ctk.CTkOptionMenu(bottom_frame, variable=scan_type_var, values=["Custom QID(s)", "Internal Default", "Dead Host"], fg_color=PURPLE, button_color=PURPLE, button_hover_color=PURPLE_DARK)
+scan_type_var = ctk.StringVar(value=scan_types_names[0] if scan_types_names else "")
+
+scan_type_dropdown = ctk.CTkOptionMenu(bottom_frame, variable=scan_type_var, fg_color=PURPLE, button_color=PURPLE, button_hover_color=PURPLE_DARK)
 scan_type_dropdown.grid(row=1, column=1, padx=10, pady=5)
+refresh_scan_display()
+
+scan_settings = ctk.CTkButton(bottom_frame, text="⚙️", command=openScanSettings, fg_color =PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK, width=15)
+scan_settings.grid(row=1, column=2, padx=5)
 
 # Create the launch scan button
 button_launch_scan = ctk.CTkButton(bottom_frame, text="Launch scan", command=launchScan, fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK)
