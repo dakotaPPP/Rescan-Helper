@@ -28,6 +28,7 @@ VITLIST = []
 CLOSE_VIT_POPUPS = []
 SETTINGS_POPUPS = []
 SCAN_SETTINGS_POPUPS = []
+CA_POPUPS = []
 API_KEY = CONFIG["API_KEY"]
 QUALYS_PLATFORM = CONFIG["QUALYS_PLATFORM"]
 LOGIN_URL = CONFIG["LOGIN_URL"]
@@ -133,36 +134,59 @@ def lookUpQIDsAndIPs():
         print("Error table wasn't copied properly!\nTo add QIDs and IPs with no VIT attached, please use the buttons under the listboxes.")
         return 
     
+    # find the custom headers the user is using for their vit detection table
+    # then use this to find QID, VIT, IP, and CI
+    header = text[0].split("Currently in read mode.")[1].split("\n")
+    header = header[2:-1]
+    header.append("Integration run")
+    print(header)
     #trims out text to only contain the rows now
-    text = text[1].split("Showing rows")[0].split("Open")
+    text = text[1].replace("\n","").split("Showing rows")[0].split("Open")
     vits = []
     qids = []
     ips = []
+    cis = []
     VITLIST.clear()
     #for each line in the copy paste area, check if VIT, QID, and IP, are present
     #if so then add VIT to global VITLIST
     #And updated the visual vits, qids, and ips array
     for entry in text:
-        vit = re.findall(r"[vV][iI][tT]\d{7,8}", entry)
-        qid = re.findall(r"QID-\d{4,6}", entry)
-        ip = re.findall(r"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b", entry)
-        if vit and qid and ip:
-            VITLIST.append({'id':vit[0], 'qid':qid[0], 'ip':ip[0]})
-            vits.append(vit[0])
-            qids.append(qid[0])
-            ips.append(ip[0])
+        #proof column text likes to use tabs for some reason, and tabs is how we differentiate between columns so we need to strip those
+        entry = entry.replace("Install Location\tVersion\tDetection Type\t","Install Location Version Detection Type")
+        columns = entry.split("\t")
+        columns = columns[1:]
+        if (not columns):
+            continue
+        if (not columns[-1]):
+            columns = columns[:-1]
+        print(columns)
+        detectionData = {}
+        for i in range(len(columns)):
+            detectionData[header[i]] = columns[i]
+
+        vit = detectionData["Vulnerable item"]
+        qid = detectionData["Vulnerability"]
+        ip = detectionData["IP address"]
+        ci = detectionData["Configuration item"]
+
+        VITLIST.append({'id':vit, 'qid':qid, 'ip':ip, 'ci':ci})
+        vits.append(vit)
+        qids.append(qid)
+        ips.append(ip)
+        cis.append(ci)
 
     #Gets rid of duplicate values
     vits = list(set(vits))
     qids = list(set(qids))
     ips = list(set(ips))
+    cis = list(set(cis))
 
     #Opens CA Compatible QIDs
     wb.open(f"https://{SNOW_URL}/sn_vul_third_party_entry_list.do?sysparm_query=sourceSTARTSWITHQ%5Esearch_listsLIKEc97b18c21b9a4d5032ceedb1bc4bcb9f%5EORsearch_listsLIKE219bd8061b9a4d5032ceedb1bc4bcbfc%5EidIN"+"%2C".join(qids)+"&sysparm_first_row=1&sysparm_view=")
     #Opens Cloud Agent manager in Qualys
     wb.open(f"https://qualysguard.{QUALYS_PLATFORM}/portal-front/module/ca/#tab=ca-agents.datalist-agents")
     #Copies IPs to clipboard in ip1 OR ip2 OR ip3 OR ... formating
-    checkIps = ' OR '.join(ips)
+    checkIps = ' OR '.join(cis)
     copy(checkIps)
 
     #Clears lists and adds the new variables
@@ -550,6 +574,39 @@ def openScanSettings():
     refresh_listbox()
     SCAN_SETTINGS_POPUPS.append(popup)
 
+def openAgentsWithCloudAgents():
+    #Allows for only 1 popup at a time
+    global CA_POPUPS
+
+    def close_popup():
+        global CA_POPUPS
+        CA_POPUPS[0].destroy()
+        CA_POPUPS.clear()
+
+    if len(CA_POPUPS) == 1:
+        close_popup()
+
+ 
+    #Ensures pop up isn't hidden behind program
+    popup = ctk.CTkToplevel()
+    popup.protocol("WM_DELETE_WINDOW", close_popup)
+    popup.title("Cloud Agents")
+    popup.after(250, lambda: popup.lift())
+    popup.attributes("-topmost", True)
+    popup.after_idle(popup.attributes, "-topmost", False)
+    
+    top_ribbon_label = ctk.CTkLabel(popup, text="Devices detected with Cloud Agents", font=("Arial",20,"bold"))
+    top_ribbon_label.pack(pady = 5)
+
+    #TODO: check which devices have cloud agents via their CIs in an API request
+    #give user the option to launch an agent scan from the program via an API request
+
+    def okButton():
+        close_popup()
+    
+    ok_button = ctk.CTkButton(button_frame, text="OK", command=okButton, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    ok_button.grid(row = 0, column = 1, padx=10)
+    CA_POPUPS.append(popup)
 
 #Easy to edit and read HEX values of colors used in the GUI
 PURPLE = "#8026FF"
