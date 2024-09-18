@@ -139,7 +139,6 @@ def lookUpQIDsAndIPs():
     header = text[0].split("Currently in read mode.")[1].split("\n")
     header = header[2:-1]
     header.append("Integration run")
-    print(header)
     #trims out text to only contain the rows now
     text = text[1].replace("\n","").split("Showing rows")[0].split("Open")
     vits = []
@@ -165,7 +164,6 @@ def lookUpQIDsAndIPs():
             for i in range(columnDiff):
                 columns[proofIndex] += "\t"+columns[proofIndex+1]
                 del columns[proofIndex+i+1]
-        print(columns)
         detectionData = {}
         for i in range(len(columns)):
             detectionData[header[i]] = columns[i]
