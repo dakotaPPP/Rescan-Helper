@@ -151,14 +151,20 @@ def lookUpQIDsAndIPs():
     #if so then add VIT to global VITLIST
     #And updated the visual vits, qids, and ips array
     for entry in text:
-        #proof column text likes to use tabs for some reason, and tabs is how we differentiate between columns so we need to strip those
-        entry = entry.replace("Install Location\tVersion\tDetection Type\t","Install Location Version Detection Type")
         columns = entry.split("\t")
-        columns = columns[1:]
+        del columns[0]
         if (not columns):
             continue
         if (not columns[-1]):
-            columns = columns[:-1]
+            del columns[-1]
+        columnDiff = len(columns) - len(header)
+
+        #proof column text likes to use tabs for some reason, and tabs is how we differentiate between columns so we need cosolidate entries
+        if (columnDiff>0):
+            proofIndex = header.index("Proof")
+            for i in range(columnDiff):
+                columns[proofIndex] += "\t"+columns[proofIndex+1]
+                del columns[proofIndex+i+1]
         print(columns)
         detectionData = {}
         for i in range(len(columns)):
