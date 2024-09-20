@@ -7,18 +7,24 @@ import webbrowser as wb
 import requests
 import xmltodict
 from json import load, dump
-from os import path, makedirs
+from os import path, makedirs, getenv
+import base64
 
 #Checks if the folder config exists in current directory
 #On first run, will create config folder and template config.json
-if not path.exists("config"):
-    makedirs("config")
-    f = open("config/config.json", "w")
-    f.write("{\"API_KEY\":\"BASIC YOUR_AUTHENTICATION_KEY_HERE\",\"QUALYS_PLATFORM\":\"YOUR_QUALYS_PLATFORM_HERE\",\"LOGIN_URL\":\"https://YOUR_LOGIN_URL_HERE\",\"SNOW_URL\":\"YOUR_SNOW_URL_HERE\",\"SCANNER_APPLIANCE\":\"scanner1,scanner2,...\"}")
+rescanHelperPath = getenv("APPDATA")+"/RescanHelper"
+if not path.exists(rescanHelperPath+"/config/config.json"):
+    if not path.exists(rescanHelperPath+"/config"):
+        makedirs(rescanHelperPath+"/config")
+    if not path.exists(rescanHelperPath):
+        makedirs(rescanHelperPath)
+
+    f = open(rescanHelperPath+"/config/config.json", "w")
+    f.write("{\"API_KEY\":\"BASIC VXNlcm5hbWU6UGFzc3dvcmQ=\",\"QUALYS_PLATFORM\":\"YOUR_QUALYS_PLATFORM_HERE\",\"LOGIN_URL\":\"https://YOUR_LOGIN_URL_HERE\",\"SNOW_URL\":\"YOUR_SNOW_URL_HERE\",\"SCANNER_APPLIANCE\":\"scanner1,scanner2,...\",\"SCAN_LIST\":{\"CHANGE NAME IN SETTINGS\":{\"SEARCH_LIST_ID\": \"ENTER SEARCH LIST\", \"OP_ID\": \"ENTER OPTION PROFILE\"}}}")
     f.close()
  
 def getConfig():
-    with open("config/config.json") as config_file:
+    with open(rescanHelperPath+"/config/config.json") as config_file:
         config = load(config_file)
         return config
 
@@ -152,11 +158,11 @@ def lookUpQIDsAndIPs():
     #And updated the visual vits, qids, and ips array
     for entry in text:
         columns = entry.split("\t")
-        del columns[0]
+        columns.pop(0)
         if (not columns):
             continue
         if (not columns[-1]):
-            del columns[-1]
+            columns.pop(-1)
         columnDiff = len(columns) - len(header)
 
         #proof column text likes to use tabs for some reason, and tabs is how we differentiate between columns so we need cosolidate entries
@@ -164,8 +170,8 @@ def lookUpQIDsAndIPs():
             proofIndex = header.index("Proof")
             for i in range(columnDiff):
                 columns[proofIndex] += "\t"+columns[proofIndex+1]
-                del columns[proofIndex+i+1]
-        print(columns)
+                columns.pop(proofIndex+1)
+
         detectionData = {}
         for i in range(len(columns)):
             detectionData[header[i]] = columns[i]
@@ -279,7 +285,7 @@ def retrieveAssetDetection(ips, qids, status):
         print("Error missing parameter(s)!")
         return []
     
-    payload = {'action':'list', 'ips':ips, 'qids':qids, 'status':status}
+    payload = {'action':'list', 'ips':ips, 'qids':qids, 'status':status, 'max_days_since_last_vm_scan':3}
 
     headers = {
         'X-Requested-With': 'RescanHelperAPI',
@@ -343,7 +349,7 @@ def doesIPHaveCloudAgent(ip):
 
 def configIsDefault():
     defaultConfig = False
-    with open("config/config.json") as config_file:
+    with open(rescanHelperPath+"/config/config.json") as config_file:
         config = load(config_file)
         if config["API_KEY"]== "BASIC YOUR_AUTHENTICATION_KEY_HERE":
             defaultConfig = True    
@@ -361,11 +367,23 @@ def openSettings():
     #Allows for only 1 popup at a time
     global SETTINGS_POPUPS, API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
 
+    def encodeBase64(input):
+        input_string_bytes = input.encode("utf-8")
+        base64_bytes = base64.b64encode(input_string_bytes)
+        base64_string = base64_bytes.decode("utf-8")
+        return base64_string
+    
+    def decodeBase64(input):
+        base64_bytes = input.encode("utf-8")
+        output_string_bytes = base64.b64decode(base64_bytes)
+        output_string = output_string_bytes.decode("utf-8")
+        return output_string
+    
     #updates all global variables and saves to config file
     def saveConfig():
         global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
-        with open("config/config.json", "w") as config_file:
-            API_KEY = api_key_entry.get()
+        with open(rescanHelperPath+"/config/config.json", "w") as config_file:
+            API_KEY = "BASIC " + encodeBase64(username_entry.get() + ":" + password_entry.get())
             QUALYS_PLATFORM = qualys_platform_entry.get()
             LOGIN_URL = login_url_entry.get()
             SCANNER_APPLIANCE = ",".join(scanner_appliance_listbox.get(0,"end"))
@@ -397,40 +415,58 @@ def openSettings():
     entriesFrame = ctk.CTkFrame(popup, fg_color=GREY_DARK)
     entriesFrame.pack(pady=10)
     #Label and their corresponding entry field
-    api_key_label = ctk.CTkLabel(entriesFrame, text="API Key:")
-    api_key_label.grid(row=0, column=0, padx=10)
-    api_key_entry = ctk.CTkEntry(entriesFrame, width=300)
-    api_key_entry.insert(0, API_KEY)
-    api_key_entry.grid(row=0, column=1, padx=10, pady=5)
+    username_label = ctk.CTkLabel(entriesFrame, text="Username:")
+    username_label.grid(row=0, column=0, padx=10)
+    username_entry = ctk.CTkEntry(entriesFrame, width=300)
+    apiKeyDecode = decodeBase64(API_KEY.split(" ")[1]).split(":")
+    username = apiKeyDecode[0]
+    username_entry.insert(0, username)
+    username_entry.grid(row=0, column=1, padx=10, pady=5)
+ 
+    password_label = ctk.CTkLabel(entriesFrame, text="Password:")
+    password_label.grid(row=1, column=0, padx=10)
+    password_entry = ctk.CTkEntry(entriesFrame, width=300, show="\u2022")
+    password = apiKeyDecode[1]
+    password_entry.insert(1, password)
+    password_entry.grid(row=1, column=1, padx=10, pady=5)
+
+    def toggleHidden(entry):
+        if(entry.cget("show")=="\u2022"):
+            entry.configure(show="")
+        else:
+            entry.configure(show="\u2022")
+
+    toggle_hidden_password_button = ctk.CTkButton(entriesFrame, text="👁", command=lambda: toggleHidden(password_entry), fg_color=GREY, border_width=2, border_color=BLACK, hover_color=GREY_DARK, width=30)
+    toggle_hidden_password_button.grid(row=1,column=2, padx=10)
 
     qualys_platform_label = ctk.CTkLabel(entriesFrame, text="Qualys Platform:")
-    qualys_platform_label.grid(row=1, column=0, padx=10)
+    qualys_platform_label.grid(row=2, column=0, padx=10)
     qualys_platform_entry = ctk.CTkEntry(entriesFrame, width=300)
     qualys_platform_entry.insert(0, QUALYS_PLATFORM)
-    qualys_platform_entry.grid(row=1, column=1, padx=10, pady=5)
+    qualys_platform_entry.grid(row=2, column=1, padx=10, pady=5)
 
     login_url_label = ctk.CTkLabel(entriesFrame, text="Login URL:")
-    login_url_label.grid(row=2, column=0, padx=10)
+    login_url_label.grid(row=3, column=0, padx=10)
     login_url_entry = ctk.CTkEntry(entriesFrame, width=300)
     login_url_entry.insert(0, LOGIN_URL)
-    login_url_entry.grid(row=2, column=1, padx=10, pady=5)
+    login_url_entry.grid(row=3, column=1, padx=10, pady=5)
     
     snow_url_label = ctk.CTkLabel(entriesFrame, text="SNOW URL:")
-    snow_url_label.grid(row=3, column=0, padx=10)
+    snow_url_label.grid(row=4, column=0, padx=10)
     snow_url_entry = ctk.CTkEntry(entriesFrame, width=300)
     snow_url_entry.insert(0, SNOW_URL)
-    snow_url_entry.grid(row=3, column=1, padx=10, pady=5)
+    snow_url_entry.grid(row=4, column=1, padx=10, pady=5)
 
     scanner_appliance_label = ctk.CTkLabel(entriesFrame, text="Scanner Appliance:")
-    scanner_appliance_label.grid(row=4, column=0, padx=10)
+    scanner_appliance_label.grid(row=5, column=0, padx=10)
     scanner_appliance_listbox = tk.Listbox(entriesFrame, width=49, selectmode="multiple", background=GREY, foreground=WHITE)
-    scanner_appliance_listbox.grid(row=5, column=1, padx=10, pady=5)
+    scanner_appliance_listbox.grid(row=6, column=1, padx=10, pady=5)
     scanner_appliance_add_entry = ctk.CTkEntry(entriesFrame, width=300, placeholder_text="Enter scanner appliance name")
-    scanner_appliance_add_entry.grid(row=4, column=1, padx=10, pady=5)
+    scanner_appliance_add_entry.grid(row=5, column=1, padx=10, pady=5)
     scanner_appliance_add_button = ctk.CTkButton(entriesFrame, text="+", command=lambda: add_entry(scanner_appliance_listbox, scanner_appliance_add_entry), fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=30)
-    scanner_appliance_add_button.grid(row=4, column=2, padx=5, pady=5)
+    scanner_appliance_add_button.grid(row=5, column=2, padx=5, pady=5)
     scanner_appliance_remove_button = ctk.CTkButton(entriesFrame, text="-", command=lambda: remove_entry(scanner_appliance_listbox), fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK, width=30)
-    scanner_appliance_remove_button.grid(row=5, column=2, padx=5, pady=5)
+    scanner_appliance_remove_button.grid(row=6, column=2, padx=5, pady=5)
 
     for scanner in SCANNER_APPLIANCE.split(","):
         scanner_appliance_listbox.insert(0,scanner)
@@ -456,7 +492,7 @@ def openScanSettings():
         global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
         add_modify_entry()
         SCAN_LIST = scans
-        with open("config/config.json", "w") as config_file:
+        with open(rescanHelperPath+"/config/config.json", "w") as config_file:
             refresh_scan_display()
             CONFIG = {'API_KEY':API_KEY, 'QUALYS_PLATFORM':QUALYS_PLATFORM, 'LOGIN_URL':LOGIN_URL, 'SCANNER_APPLIANCE':SCANNER_APPLIANCE, 'SNOW_URL':SNOW_URL, 'SCAN_LIST':SCAN_LIST}
             dump(CONFIG, config_file, indent=4)
