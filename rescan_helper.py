@@ -253,6 +253,8 @@ def open_vits_fixed():
     listbox.pack(padx=10, pady=5)
 
     vitsFixed = retrieveAssetDetection(",".join(ips_listbox.get(0, "end")), ",".join(get_qids()), "Fixed")
+    if len(vitsFixed) > 0:
+        copy("VIT(s) closed, vulnerabilities have been fixed according to rescan.")
     for vit in vitsFixed:
         listbox.insert("end", vit)
     
