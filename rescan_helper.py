@@ -145,7 +145,6 @@ def lookUpQIDsAndIPs():
     header = text[0].split("Currently in read mode.")[1].split("\n")
     header = header[2:-1]
     header.append("Integration run")
-    print(header)
     #trims out text to only contain the rows now
     text = text[1].replace("\n","").split("Showing rows")[0].split("Open")
     vits = []
