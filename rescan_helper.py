@@ -263,7 +263,7 @@ def open_vits_fixed():
     for vit in vitsFixed:
         listbox.insert("end", vit)
     
-    label = ctk.CTkLabel(popup, text="The above VITs are labeled\nas FIXED in VMDR")
+    label = ctk.CTkLabel(popup, text=f"{len(vitsFixed)} VIT(s) are labeled\nas FIXED in VMDR")
     label.pack(pady=5)
 
     CLOSE_VIT_POPUPS.append(popup)
