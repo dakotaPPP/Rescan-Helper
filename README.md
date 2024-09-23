@@ -19,8 +19,8 @@ If instead you want to run the code via the .py file then follow the steps below
 
 ## On First Run
 Upon your first time running the program it will create a config folder in your appdata<br />
-To change your configurations click the black button with the gear icon at the top right of the screen and then apply changes. <br />
-Finally change the `Scan type:` settings by clicking the purple gear icon to the right of the drop down.
+To change your configurations click the black button with the gear icon at the top right of the screen and then apply changes <br />
+Finally change the `Scan type:` settings by clicking the purple gear icon to the right of the drop down
 
 ## Guide
 1. Login to Qualys on your browser, as some buttons open up Qualys webpages<br />Click `Login to Qualys` for easy login
