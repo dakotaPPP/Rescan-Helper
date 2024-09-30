@@ -204,15 +204,18 @@ def lookUpQIDsAndIPs():
     vits_listbox.delete(0, "end")
     for vit in vits:
         vits_listbox.insert("end", vit)
-   
+    vits_label.configure(text =f"{len(vits)} - VIT(s)")
+
     qids_listbox.delete(0, "end")
     for qid in qids:
         qids_listbox.insert("end", qid)
+    qids_label.configure(text =f"{len(qids)} - QID(s)")
     
     ips_listbox.delete(0, "end")
     for ip in ips:
         ips_listbox.insert("end", ip)
-    
+    ips_label.configure(text =f"{len(ips)} - IP(s)")
+
     print("VITs, QIDs, and IPs tables populated!")
 
 #Used for adding to listbox
