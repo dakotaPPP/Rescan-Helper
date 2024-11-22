@@ -146,6 +146,7 @@ def lookUpQIDsAndIPs():
     header = header[2:-1]
     header.append("Integration run")
     #trims out text to only contain the rows now
+    text[1] = text[1].replace("OpenSSH","")
     text = text[1].replace("\n","").split("Showing rows")[0].split("Open")
     text = text[1:]
     vits = []
@@ -164,7 +165,6 @@ def lookUpQIDsAndIPs():
         if (not columns[-1]):
             columns.pop(-1)
         columnDiff = len(columns) - len(header)
-
         #proof column text likes to use tabs for some reason, and tabs is how we differentiate between columns so we need cosolidate entries
         if (columnDiff>0):
             proofIndex = header.index("Proof")
@@ -175,7 +175,6 @@ def lookUpQIDsAndIPs():
         detectionData = {}
         for i in range(len(columns)):
             detectionData[header[i]] = columns[i]
-
         vit = detectionData["Vulnerable item"]
         qid = detectionData["Vulnerability"]
         ip = detectionData["IP address"]
