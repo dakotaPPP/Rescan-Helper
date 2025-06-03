@@ -143,7 +143,7 @@ def lookUpQIDsAndIPs():
     # find the custom headers the user is using for their vit detection table
     # then use this to find QID, VIT, IP, and CI
     header = text[0].split("Currently in read mode.")[1].split("\n")
-    header = header[2:-1]
+    header = header[3:-1]
     header.append("Integration run")
     #trims out text to only contain the rows now
     text[1] = text[1].replace("OpenSSH","")
@@ -171,7 +171,9 @@ def lookUpQIDsAndIPs():
             for i in range(columnDiff):
                 columns[proofIndex] += "\t"+columns[proofIndex+1]
                 columns.pop(proofIndex+1)
-
+        elif (columnDiff<0):
+            for i in range(-columnDiff):
+                columns.insert(2, "")
         detectionData = {}
         for i in range(len(columns)):
             detectionData[header[i]] = columns[i]
