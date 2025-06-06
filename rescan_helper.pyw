@@ -173,8 +173,7 @@ def lookUpQIDsAndIPs():
             continue
         if (not columns[-1]):
             columns.pop(-1)
-        print(columns)
-        print(header)
+
         first_found = columns[2][:19]
         last_found = columns[2][19:38]
         last_element = columns[2][38:]
@@ -193,8 +192,7 @@ def lookUpQIDsAndIPs():
             for i in range(columnDiff):
                 columns[proofIndex] += "\t"+columns[proofIndex+1]
                 columns.pop(proofIndex+1)
-        print(columns)
-        print(header)
+
         detectionData = {}
         for i in range(len(columns)):
             detectionData[header[i]] = columns[i]
