@@ -65,6 +65,7 @@ def updateSearchList(id):
     if "search list updated successfully" in response.text:
         print("Search list updated!")
     else:
+        print(response.text)
         print("Error, search list not update!!")
         return -1
 
@@ -90,6 +91,7 @@ def launchScanHelper(title, option, appliances, ips):
     if "New vm scan launched" in response.text:
         return 0
 
+    print(response.text)
     print("Error while launching, scan canceled.")
     return -1
 
@@ -329,44 +331,6 @@ def retrieveAssetDetection(ips, qids, status):
     fixedVits = list(set(fixedVits))
     return fixedVits
 
-def doesIPHaveCloudAgent(ip):
-    url = f"https://qualysapi.{QUALYS_PLATFORM}/qps/rest/2.0/search/am/hostasset"
-    
-    payload = f'<ServiceRequest><filters><Criteria field="address" operator="EQUALS">{ip}</Criteria><Criteria field="trackingMethod" operator="EQUALS">QAGENT</Criteria></filters></ServiceRequest>'
-
-    headers = {
-        'X-Requested-With': 'RescanHelperAPI',
-        'Authorization': API_KEY
-    }
-
-    response = requests.post(url, headers=headers, data=payload)
-
-    if(response.status_code != 200):
-        print(f"Error bad response\nCode: {response.status_code}\nMessage: {response.text}")
-        return []
-
-    #This only occurs when the search query returns a cloud agent count of 0
-    if(len(response.text) < 300):
-        return False
-    else:
-        return True
-
-def configIsDefault():
-    defaultConfig = False
-    with open(rescanHelperPath+"/config/config.json") as config_file:
-        config = load(config_file)
-        if config["API_KEY"]== "BASIC YOUR_AUTHENTICATION_KEY_HERE":
-            defaultConfig = True    
-        elif config["QUALYS_PLATFORM"]== "YOUR_QUALYS_PLATFORM_HERE":
-            defaultConfig = True
-        elif config["LOGIN_URL"]== "https://YOUR_LOGIN_URL_HERE":
-            defaultConfig = True
-        elif config["SCANNER_APPLIANCE"] == "scanner1, scanner2, ...":
-            defaultConfig = True
-        elif config["SNOW_URL"] == "YOUR_SNOW_URL_HERE":
-            defaultConfig = True
-    return defaultConfig
-
 def openSettings():
     #Allows for only 1 popup at a time
     global SETTINGS_POPUPS, API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
@@ -423,14 +387,14 @@ def openSettings():
     username_label.grid(row=0, column=0, padx=10)
     username_entry = ctk.CTkEntry(entriesFrame, width=300)
     apiKeyDecode = decodeBase64(API_KEY.split(" ")[1]).split(":")
-    username = apiKeyDecode[0]
+    username = apiKeyDecode.pop(0)
     username_entry.insert(0, username)
     username_entry.grid(row=0, column=1, padx=10, pady=5)
  
     password_label = ctk.CTkLabel(entriesFrame, text="Password:")
     password_label.grid(row=1, column=0, padx=10)
     password_entry = ctk.CTkEntry(entriesFrame, width=300, show="\u2022")
-    password = apiKeyDecode[1]
+    password = ":".join(apiKeyDecode)
     password_entry.insert(1, password)
     password_entry.grid(row=1, column=1, padx=10, pady=5)
 
@@ -621,40 +585,6 @@ def openScanSettings():
 
     refresh_listbox()
     SCAN_SETTINGS_POPUPS.append(popup)
-
-def openAgentsWithCloudAgents():
-    #Allows for only 1 popup at a time
-    global CA_POPUPS
-
-    def close_popup():
-        global CA_POPUPS
-        CA_POPUPS[0].destroy()
-        CA_POPUPS.clear()
-
-    if len(CA_POPUPS) == 1:
-        close_popup()
-
- 
-    #Ensures pop up isn't hidden behind program
-    popup = ctk.CTkToplevel()
-    popup.protocol("WM_DELETE_WINDOW", close_popup)
-    popup.title("Cloud Agents")
-    popup.after(250, lambda: popup.lift())
-    popup.attributes("-topmost", True)
-    popup.after_idle(popup.attributes, "-topmost", False)
-    
-    top_ribbon_label = ctk.CTkLabel(popup, text="Devices detected with Cloud Agents", font=("Arial",20,"bold"))
-    top_ribbon_label.pack(pady = 5)
-
-    #TODO: check which devices have cloud agents via their CIs in an API request
-    #give user the option to launch an agent scan from the program via an API request
-
-    def okButton():
-        close_popup()
-    
-    ok_button = ctk.CTkButton(button_frame, text="OK", command=okButton, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
-    ok_button.grid(row = 0, column = 1, padx=10)
-    CA_POPUPS.append(popup)
 
 #Easy to edit and read HEX values of colors used in the GUI
 PURPLE = "#8026FF"
