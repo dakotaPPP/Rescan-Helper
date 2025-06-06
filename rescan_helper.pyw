@@ -9,6 +9,7 @@ import xmltodict
 from json import load, dump
 from os import path, makedirs, getenv
 import base64
+import ipaddress
 
 #Checks if the folder config exists in current directory
 #On first run, will create config folder and template config.json
@@ -142,6 +143,12 @@ def lookUpQIDsAndIPs():
         print("Error table wasn't copied properly!\nTo add QIDs and IPs with no VIT attached, please use the buttons under the listboxes.")
         return 
     
+
+    def validate_ip(ip_str):
+        try:
+            ipaddress.ip_address(ip_str)
+        except ValueError:
+            raise LookupError(f"Invalid IP address format: {ip_str}")
     # find the custom headers the user is using for their vit detection table
     # then use this to find QID, VIT, IP, and CI
     header = text[0].split("Currently in read mode.")[1].split("\n")
@@ -166,22 +173,43 @@ def lookUpQIDsAndIPs():
             continue
         if (not columns[-1]):
             columns.pop(-1)
+        print(columns)
+        print(header)
+        first_found = columns[2][:19]
+        last_found = columns[2][19:38]
+        last_element = columns[2][38:]
+        
+        try:
+            validate_ip(last_element)
+            columns = columns[:2] + [first_found] + [last_found] + [""] + [""] + [last_element] + columns[3:]
+        except:
+            columns = columns[:2] + [first_found] + [last_found] + [last_element] + columns[3:]
+
         columnDiff = len(columns) - len(header)
+
         #proof column text likes to use tabs for some reason, and tabs is how we differentiate between columns so we need cosolidate entries
         if (columnDiff>0):
             proofIndex = header.index("Proof")
             for i in range(columnDiff):
                 columns[proofIndex] += "\t"+columns[proofIndex+1]
                 columns.pop(proofIndex+1)
-        elif (columnDiff<0):
-            for i in range(-columnDiff):
-                columns.insert(2, "")
+        print(columns)
+        print(header)
         detectionData = {}
         for i in range(len(columns)):
             detectionData[header[i]] = columns[i]
+
         vit = detectionData["Vulnerable item"]
-        qid = detectionData["Vulnerability"]
+        if vit.startswith("VIT") != True:
+            raise LookupError("Error when copying data from SNOW over!")
+
+        qid = str(detectionData["Vulnerability"])
+        if qid.startswith("QID") != True:
+            raise LookupError("Error when copying data from SNOW over!")
+
         ip = detectionData["IP address"]
+        validate_ip(ip)
+
         ci = detectionData["Configuration item"]
 
         VITLIST.append({'id':vit, 'qid':qid, 'ip':ip, 'ci':ci})
