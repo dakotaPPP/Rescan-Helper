@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import scrolledtext
 import webbrowser as wb
 import requests
-import xmltodict
+from csv import DictReader
 from json import load, dump
 from os import path, makedirs, getenv
 import base64
@@ -29,9 +29,16 @@ def getConfig():
         config = load(config_file)
         return config
 
+class VitObject:
+    def __init__(self, id, qid, ip, ci):
+        self.id = str(id)
+        self.qid = str(qid)
+        self.ip = str(ip)
+        self.ci = str(ci)
+    
 #Global variables
 CONFIG = getConfig()
-VITLIST = []
+VITLIST: list[VitObject] = []
 CLOSE_VIT_POPUPS = []
 SETTINGS_POPUPS = []
 SCAN_SETTINGS_POPUPS = []
@@ -44,13 +51,13 @@ SNOW_URL = CONFIG["SNOW_URL"]
 SCAN_LIST = CONFIG["SCAN_LIST"]
 
 #grabs qid from listbox object
-def get_qids():
-    qidNumbers = []
+def get_qids() -> list[str]:
+    qidNumbers: list[str] = []
     for qid in qids_listbox.get(0,"end"):
         qidNumbers.append(qid[4:])
     return qidNumbers
 
-def updateSearchList(id):
+def updateSearchList(id: str) -> int:
     print("Updating search list...")
     url = f"https://qualysapi.{QUALYS_PLATFORM}/api/2.0/fo/qid/search_list/static/"
 
@@ -73,7 +80,7 @@ def updateSearchList(id):
     return 0
 
 # Easy api requesting for launching a scan
-def launchScanHelper(title, option, appliances, ips):
+def launchScanHelper(title, option, appliances, ips) -> int:
     print("Launching scan...")
     
     if len(ips) == 0:
@@ -158,10 +165,10 @@ def lookUpQIDsAndIPs():
     text[1] = text[1].replace("OpenSSH","")
     text = text[1].replace("\n","").split("Showing rows")[0].split("Open")
     text = text[1:]
-    vits = []
-    qids = []
-    ips = []
-    cis = []
+    vits: list[str] = []
+    qids: list[str] = []
+    ips: list[str] = []
+    cis: list[str] = []
     VITLIST.clear()
     #for each line in the copy paste area, check if VIT, QID, and IP, are present
     #if so then add VIT to global VITLIST
@@ -197,20 +204,20 @@ def lookUpQIDsAndIPs():
         for i in range(len(columns)):
             detectionData[header[i]] = columns[i]
 
-        vit = detectionData["Vulnerable item"]
+        vit: str = detectionData["Vulnerable item"]
         if vit.startswith("VIT") != True:
             raise LookupError("Error when copying data from SNOW over!")
 
-        qid = str(detectionData["Vulnerability"])
+        qid: str = str(detectionData["Vulnerability"])
         if qid.startswith("QID") != True:
             raise LookupError("Error when copying data from SNOW over!")
 
-        ip = detectionData["IP address"]
+        ip: str = detectionData["IP address"]
         validate_ip(ip)
 
-        ci = detectionData["Configuration item"]
+        ci: str = detectionData["Configuration item"]
 
-        VITLIST.append({'id':vit, 'qid':qid, 'ip':ip, 'ci':ci})
+        VITLIST.append(VitObject(vit, qid, ip, ci))
         vits.append(vit)
         qids.append(qid)
         ips.append(ip)
@@ -304,20 +311,20 @@ def open_vits_fixed():
     wb.open(f"https://{SNOW_URL}/sn_vul_vulnerable_item_list.do?sysparm_query=active%3Dtrue%5EnumberIN"+"%2C".join(vitsFixed)+"&sysparm_first_row=1&sysparm_view=")
 
 #Gets VITs by checking the ip and qid of each VIT, as these should be unique per VIT 
-def getVitID(ip, qid):
+def getVitID(ip: str, qid: str) -> str:
     for vit in VITLIST:
-        if (vit['ip'] == ip and vit['qid'] == qid):
-            return vit['id']
-    return -1
+        if (vit.ip == ip and vit.qid == qid):
+            return vit.id
+    return "-1"
 
 #Easy quering of the VMDR's assests
-def retrieveAssetDetection(ips, qids, status):
+def retrieveAssetDetection(ips: str, qids: str, status: str) -> list[str]:
     url = f"https://qualysapi.{QUALYS_PLATFORM}/api/2.0/fo/asset/host/vm/detection/"
     if not ips or not qids or not status:
         print("Error missing parameter(s)!")
         return []
     
-    payload = {'action':'list', 'ips':ips, 'qids':qids, 'status':status, 'max_days_since_last_vm_scan':3}
+    payload = {'action':'list', 'ips':ips, 'qids':qids, 'status':status, 'max_days_since_last_vm_scan':3, 'output_format':'CSV_NO_METADATA'}
 
     headers = {
         'X-Requested-With': 'RescanHelperAPI',
@@ -330,29 +337,17 @@ def retrieveAssetDetection(ips, qids, status):
         print(f"Error bad response\nCode: {response.status_code}\nMessage: {response.text}")
         return []
 
-    #This case occurs when the response comes back empty
-    if (len(response.text) < 600): 
-        print("Empty response")
-        return []
-    data = xmltodict.parse(response.text)
-    fixedVits = []
+    fixedVits: list[str] = []
+    #take in csv data, idk why I didn't do it this way originally
+    data = response.text
 
-    #Jank response file from Qualys
-    #HOST_LIST and DETECTION_LIST doesn't always return a list so this catches that scenerio :p
-    host_list = data['HOST_LIST_VM_DETECTION_OUTPUT']['RESPONSE']['HOST_LIST']['HOST']
-    if not isinstance(host_list, list):
-        host_list = [host_list]
+    rows = DictReader(data.splitlines())
 
-    for host in host_list:
-        detection_list = host['DETECTION_LIST']['DETECTION']
-        if not isinstance(detection_list, list):
-            detection_list = [detection_list]
-
-        for detection in detection_list:
-                vitID = getVitID(host['IP'], "QID-"+detection['QID'])
-                if vitID == -1:
-                    continue
-                fixedVits.append(vitID)
+    for row in rows:
+        vitID = getVitID(row['IP Address'], "QID-"+row['QID'])
+        if vitID == "-1":
+            continue
+        fixedVits.append(vitID)
     
     fixedVits = list(set(fixedVits))
     return fixedVits
