@@ -263,7 +263,7 @@ def add_entry(listbox, entry):
         entry.delete(0, "end")
 
 #Used for removing from listbox
-def remove_entry(listbox):
+def remove_entry(listbox: tk.Listbox):
     selected_items = listbox.curselection()
     for item in selected_items[::-1]:
         listbox.delete(item)
@@ -566,7 +566,7 @@ def openScanSettings():
         for name in scans:
             scan_listbox.insert('end', name)
 
-    def on_listbox_select(event):
+    def on_listbox_select():
         selected = scan_listbox.curselection()
         if selected:
             name = scan_listbox.get(selected[0])
