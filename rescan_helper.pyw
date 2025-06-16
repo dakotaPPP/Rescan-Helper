@@ -2,6 +2,7 @@
 
 import re
 import tkinter as tk
+from tkinter import scrolledtext
 import webbrowser as wb
 from csv import DictReader
 from json import load, dump
@@ -109,7 +110,6 @@ def launchScanHelper(title, option, appliances, ips) -> int:
 
 # is the launch scan button function
 def launchScan():
-    global SCAN_LIST
     ips_arr = ips_listbox.get(0, "end")
 
     if len(ips_arr) == 0:
@@ -376,8 +376,8 @@ def openSettings():
         return output_string
 
     #updates all global variables and saves to config file
-    def saveConfig():
-        global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
+    def save_config():
+        global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
         with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as config_file:
             API_KEY = "BASIC " + encodeBase64(username_entry.get() + ":" + password_entry.get())
             QUALYS_PLATFORM = qualys_platform_entry.get()
@@ -474,11 +474,11 @@ def openSettings():
 
     button_frame = ctk.CTkFrame(popup)
     button_frame.pack(pady=5)
-    apply_button = ctk.CTkButton(button_frame, text="Apply", command=saveConfig, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    apply_button = ctk.CTkButton(button_frame, text="Apply", command=save_config, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     apply_button.grid(row = 0, column = 0, padx = 10, pady=5)
 
     def ok_button_function():
-        saveConfig()
+        save_config()
         close_popup()
 
     ok_button = ctk.CTkButton(button_frame, text="OK", command=ok_button_function, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
@@ -490,7 +490,7 @@ def openScanSettings():
     global SCAN_SETTINGS_POPUPS, API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
     #updates all global variables and saves to config file
     scans = SCAN_LIST.copy()
-    def saveConfig():
+    def save_config():
         global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
         add_modify_entry()
         SCAN_LIST = scans
@@ -579,7 +579,7 @@ def openScanSettings():
         for name in scans:
             scan_listbox.insert('end', name)
 
-    def on_listbox_select():
+    def on_listbox_select(event):
         selected = scan_listbox.curselection()
         if selected:
             name = scan_listbox.get(selected[0])
@@ -607,11 +607,11 @@ def openScanSettings():
 
     button_frame = ctk.CTkFrame(popup)
     button_frame.pack(pady=5)
-    apply_button = ctk.CTkButton(button_frame, text="Apply", command=saveConfig, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    apply_button = ctk.CTkButton(button_frame, text="Apply", command=save_config, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     apply_button.grid(row = 0, column = 0, padx = 10, pady=5)
 
     def ok_button_function():
-        saveConfig()
+        save_config()
         close_popup()
 
     ok_button = ctk.CTkButton(button_frame, text="OK", command=ok_button_function, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
@@ -645,7 +645,7 @@ ctk.set_default_color_theme("green")
 top_ribbon_label = ctk.CTkLabel(root, text="Rescan Helper", font=("Arial",20,"bold"))
 top_ribbon_label.pack(pady = 5)
 # Create a scrolled text area
-text_area = tk.scrolledtext.ScrolledText(root, wrap="word", width=55, height=6, background = GREY, foreground = "white")
+text_area = scrolledtext.ScrolledText(root, wrap="word", width=55, height=6, background = GREY, foreground = "white")
 text_area.insert("1.0", "Paste email's contents here")
 text_area.pack(padx=10, pady=10)
 
