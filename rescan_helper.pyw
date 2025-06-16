@@ -487,11 +487,11 @@ def openSettings():
 
 # pylint: disable=too-many-statements
 def openScanSettings():
-    global SCAN_SETTINGS_POPUPS, API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
+    global SCAN_SETTINGS_POPUPS
     #updates all global variables and saves to config file
     scans = SCAN_LIST.copy()
     def save_config():
-        global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
+        global CONFIG, SCAN_LIST
         add_modify_entry()
         SCAN_LIST = scans
         with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as config_file:
