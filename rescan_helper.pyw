@@ -1,3 +1,5 @@
+"""Contains everything for rescan helper... I should refactor at some point"""
+
 import re
 import tkinter as tk
 import webbrowser as wb
@@ -20,13 +22,13 @@ if not path.exists(rescanHelperPath+"/config/config.json"):
     if not path.exists(rescanHelperPath):
         makedirs(rescanHelperPath)
 
-    with open(rescanHelperPath+"/config/config.json", "w") as f:
+    with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as f:
         # pylint: disable=line-too-long
         f.write("{\"API_KEY\":\"BASIC VXNlcm5hbWU6UGFzc3dvcmQ=\",\"QUALYS_PLATFORM\":\"YOUR_QUALYS_PLATFORM_HERE\",\"LOGIN_URL\":\"https://YOUR_LOGIN_URL_HERE\",\"SNOW_URL\":\"YOUR_SNOW_URL_HERE\",\"SCANNER_APPLIANCE\":\"scanner1,scanner2,...\",\"SCAN_LIST\":{\"CHANGE NAME IN SETTINGS\":{\"SEARCH_LIST_ID\": \"ENTER SEARCH LIST\", \"OP_ID\": \"ENTER OPTION PROFILE\"}}}")
         f.close()
 
 def getConfig():
-    config_file = open(rescanHelperPath+"/config/config.json")
+    config_file = open(rescanHelperPath+"/config/config.json", encoding="UTF-8")
     config = load(config_file)
     return config
 
@@ -338,7 +340,7 @@ def retrieveAssetDetection(ips: str, qids: str, status: str) -> list[str]:
 
     response = requests.post(url, headers=headers, data=payload)
 
-    if(response.status_code != 200):
+    if response.status_code != 200:
         print(f"Error bad response\nCode: {response.status_code}\nMessage: {response.text}")
         return []
 
@@ -376,7 +378,7 @@ def openSettings():
     #updates all global variables and saves to config file
     def saveConfig():
         global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
-        with open(rescanHelperPath+"/config/config.json", "w") as config_file:
+        with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as config_file:
             API_KEY = "BASIC " + encodeBase64(username_entry.get() + ":" + password_entry.get())
             QUALYS_PLATFORM = qualys_platform_entry.get()
             LOGIN_URL = login_url_entry.get()
@@ -425,7 +427,7 @@ def openSettings():
     password_entry.grid(row=1, column=1, padx=10, pady=5)
 
     def toggleHidden(entry):
-        if(entry.cget("show")=="\u2022"):
+        if entry.cget("show")=="\u2022":
             entry.configure(show="")
         else:
             entry.configure(show="\u2022")
@@ -483,6 +485,7 @@ def openSettings():
     ok_button.grid(row = 0, column = 1, padx=10)
     SETTINGS_POPUPS.append(popup)
 
+# pylint: disable=too-many-statements
 def openScanSettings():
     global SCAN_SETTINGS_POPUPS, API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
     #updates all global variables and saves to config file
@@ -491,7 +494,7 @@ def openScanSettings():
         global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
         add_modify_entry()
         SCAN_LIST = scans
-        with open(rescanHelperPath+"/config/config.json", "w") as config_file:
+        with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as config_file:
             refresh_scan_display()
             CONFIG = {'API_KEY':API_KEY, 'QUALYS_PLATFORM':QUALYS_PLATFORM, 'LOGIN_URL':LOGIN_URL, 'SCANNER_APPLIANCE':SCANNER_APPLIANCE, 'SNOW_URL':SNOW_URL, 'SCAN_LIST':SCAN_LIST}
             dump(CONFIG, config_file, indent=4)
