@@ -28,20 +28,20 @@ if not path.exists(rescanHelperPath+"/config/config.json"):
         f.write("{\"API_KEY\":\"BASIC VXNlcm5hbWU6UGFzc3dvcmQ=\",\"QUALYS_PLATFORM\":\"YOUR_QUALYS_PLATFORM_HERE\",\"LOGIN_URL\":\"https://YOUR_LOGIN_URL_HERE\",\"SNOW_URL\":\"YOUR_SNOW_URL_HERE\",\"SCANNER_APPLIANCE\":\"scanner1,scanner2,...\",\"SCAN_LIST\":{\"CHANGE NAME IN SETTINGS\":{\"SEARCH_LIST_ID\": \"ENTER SEARCH LIST\", \"OP_ID\": \"ENTER OPTION PROFILE\"}}}")
         f.close()
 
-def getConfig():
+def get_config():
     config_file = open(rescanHelperPath+"/config/config.json", encoding="UTF-8")
     config = load(config_file)
     return config
 
 class VitObject:
-    def __init__(self, id, qid, ip, ci):
-        self.id = str(id)
+    def __init__(self, vit_id, qid, ip, ci):
+        self.vit_id = str(vit_id)
         self.qid = str(qid)
         self.ip = str(ip)
         self.ci = str(ci)
 
 #Global variables
-CONFIG = getConfig()
+CONFIG = get_config()
 VITLIST: list[VitObject] = []
 CLOSE_VIT_POPUPS = []
 SETTINGS_POPUPS = []
@@ -56,23 +56,23 @@ SCAN_LIST: str = CONFIG["SCAN_LIST"]
 
 #grabs qid from listbox object
 def get_qids() -> list[str]:
-    qidNumbers: list[str] = []
+    qid_numbers: list[str] = []
     for qid in qids_listbox.get(0,"end"):
-        qidNumbers.append(qid[4:])
-    return qidNumbers
+        qid_numbers.append(qid[4:])
+    return qid_numbers
 
-def updateSearchList(id: str) -> int:
+def update_search_list(input_id: str) -> int:
     print("Updating search list...")
     url = f"https://qualysapi.{QUALYS_PLATFORM}/api/2.0/fo/qid/search_list/static/"
 
-    payload = {'action': 'update', 'id': id, 'qids': ",".join(get_qids())}
+    payload = {'action': 'update', 'id': input_id, 'qids': ",".join(get_qids())}
 
     headers = {
     'X-Requested-With': 'RescanHelperAPI',
     'Authorization': API_KEY
     }
 
-    response = requests.post(url, headers=headers, data=payload)
+    response = requests.post(url, headers=headers, data=payload, timeout=30)
 
     if "search list updated successfully" in response.text:
         print("Search list updated!")
@@ -84,7 +84,7 @@ def updateSearchList(id: str) -> int:
     return 0
 
 # Easy api requesting for launching a scan
-def launchScanHelper(title, option, appliances, ips) -> int:
+def launch_scan_helper(title, option, appliances, ips) -> int:
     print("Launching scan...")
 
     if len(ips) == 0:
@@ -99,7 +99,7 @@ def launchScanHelper(title, option, appliances, ips) -> int:
         'Authorization': API_KEY
     }
 
-    response = requests.post(url, headers=headers, data=payload)
+    response = requests.post(url, headers=headers, data=payload, timeout=30)
 
     if "New vm scan launched" in response.text:
         return 0
@@ -109,7 +109,7 @@ def launchScanHelper(title, option, appliances, ips) -> int:
     return -1
 
 # is the launch scan button function
-def launchScan():
+def launch_scan():
     ips_arr = ips_listbox.get(0, "end")
 
     if len(ips_arr) == 0:
@@ -128,19 +128,19 @@ def launchScan():
         if len(qids_listbox.get(0, "end")) == 0:
             print("No QIDs detected, scan canceled")
             return -3
-        if updateSearchList(scan["SEARCH_LIST_ID"]) == -1:
+        if update_search_list(scan["SEARCH_LIST_ID"]) == -1:
             print("Scan canceled.")
             return -4
 
     #Launch scan with selected scanner appliance group
-    if launchScanHelper(title_entry.get(), scan["OP_ID"], SCANNER_APPLIANCE, ips_arr) == -1:
+    if launch_scan_helper(title_entry.get(), scan["OP_ID"], SCANNER_APPLIANCE, ips_arr) == -1:
         return -5
 
     wb.open(f"https://qualysguard.{QUALYS_PLATFORM}/fo/scan/scanList.php")
     print("Scan launched!")
     return 0
 
-def lookUpVITs():
+def look_up_vits():
     text = text_area.get("1.0", "end").strip()
     vits = re.findall(r"[Vv][Ii][Tt]\d{7,8}", text)
     # pylint: disable=line-too-long
@@ -155,6 +155,7 @@ def validate_ip(ip_str: str):
         raise LookupError(f"Invalid IP address format: {ip_str}")
 
 def lookUpQIDsAndIPs():
+    # pylint: disable=global-variable-not-assigned
     global VITLIST
     text = text_area.get("1.0", "end").split("Integration run\n")
     if len(text) == 1:
@@ -321,7 +322,7 @@ def open_vits_fixed():
 def getVitID(ip: str, qid: str) -> str:
     for vit in VITLIST:
         if vit.ip == ip and vit.qid == qid:
-            return vit.id
+            return vit.vit_id
     return "-1"
 
 #Easy quering of the VMDR's assests
@@ -338,7 +339,7 @@ def retrieveAssetDetection(ips: str, qids: str, status: str) -> list[str]:
         'Authorization': API_KEY
     }
 
-    response = requests.post(url, headers=headers, data=payload)
+    response = requests.post(url, headers=headers, data=payload, timeout=30)
 
     if response.status_code != 200:
         print(f"Error bad response\nCode: {response.status_code}\nMessage: {response.text}")
@@ -487,6 +488,7 @@ def openSettings():
 
 # pylint: disable=too-many-statements
 def openScanSettings():
+    # pylint: disable=global-variable-not-assigned
     global SCAN_SETTINGS_POPUPS
     #updates all global variables and saves to config file
     scans = SCAN_LIST.copy()
@@ -500,6 +502,7 @@ def openScanSettings():
             dump(CONFIG, config_file, indent=4)
 
     def close_popup():
+        # pylint: disable=global-variable-not-assigned
         global SCAN_SETTINGS_POPUPS
         SCAN_SETTINGS_POPUPS[0].destroy()
         SCAN_SETTINGS_POPUPS.clear()
@@ -654,7 +657,7 @@ main_button_frame = ctk.CTkFrame(root)
 main_button_frame.pack(pady=10)
 
 # Create the buttons
-button_vits = ctk.CTkButton(main_button_frame, text="Look up VIT(s)", command=lookUpVITs, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
+button_vits = ctk.CTkButton(main_button_frame, text="Look up VIT(s)", command=look_up_vits, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_vits.grid(row=0, column=0, padx=10, pady=5)
 
 button_qids_ips = ctk.CTkButton(main_button_frame, text="Look up QID(s) and IP(s)", command=lookUpQIDsAndIPs, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
@@ -761,7 +764,7 @@ scan_settings = ctk.CTkButton(bottom_frame, text="⚙️", command=openScanSetti
 scan_settings.grid(row=1, column=2, padx=5)
 
 # Create the launch scan button
-button_launch_scan = ctk.CTkButton(bottom_frame, text="Launch scan", command=launchScan, fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK)
+button_launch_scan = ctk.CTkButton(bottom_frame, text="Launch scan", command=launch_scan, fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK)
 button_launch_scan.grid(row=3, column=1, padx=10, pady=5)
 
 settingsButton = ctk.CTkButton(root, text="⚙️", command=openSettings, fg_color =GREY, border_width=1, border_color=WHITE, hover_color=GREY_DARK, width=15)
