@@ -1,16 +1,16 @@
 import re
-from pyperclip import copy
-import customtkinter as ctk
 import tkinter as tk
-from tkinter import scrolledtext
 import webbrowser as wb
-import requests
 from csv import DictReader
 from json import load, dump
 from os import path, makedirs, getenv
 import base64
 import ipaddress
 
+# thrid party imports
+import requests
+import customtkinter as ctk
+from pyperclip import copy
 #Checks if the folder config exists in current directory
 #On first run, will create config folder and template config.json
 rescanHelperPath = getenv("APPDATA")+"/RescanHelper"
@@ -25,9 +25,9 @@ if not path.exists(rescanHelperPath+"/config/config.json"):
     f.close()
  
 def getConfig():
-    with open(rescanHelperPath+"/config/config.json") as config_file:
-        config = load(config_file)
-        return config
+    config_file = open(rescanHelperPath+"/config/config.json")
+    config = load(config_file)
+    return config
 
 class VitObject:
     def __init__(self, id, qid, ip, ci):
@@ -43,12 +43,12 @@ CLOSE_VIT_POPUPS = []
 SETTINGS_POPUPS = []
 SCAN_SETTINGS_POPUPS = []
 CA_POPUPS = []
-API_KEY = CONFIG["API_KEY"]
-QUALYS_PLATFORM = CONFIG["QUALYS_PLATFORM"]
-LOGIN_URL = CONFIG["LOGIN_URL"]
-SCANNER_APPLIANCE = CONFIG["SCANNER_APPLIANCE"]
-SNOW_URL = CONFIG["SNOW_URL"]
-SCAN_LIST = CONFIG["SCAN_LIST"]
+API_KEY: str = CONFIG["API_KEY"]
+QUALYS_PLATFORM: str = CONFIG["QUALYS_PLATFORM"]
+LOGIN_URL: str = CONFIG["LOGIN_URL"]
+SCANNER_APPLIANCE: str = CONFIG["SCANNER_APPLIANCE"]
+SNOW_URL: str = CONFIG["SNOW_URL"]
+SCAN_LIST: str = CONFIG["SCAN_LIST"]
 
 #grabs qid from listbox object
 def get_qids() -> list[str]:
@@ -465,11 +465,11 @@ def openSettings():
     apply_button = ctk.CTkButton(button_frame, text="Apply", command=saveConfig, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     apply_button.grid(row = 0, column = 0, padx = 10, pady=5)
 
-    def okButton():
+    def ok_button_function():
         saveConfig()
         close_popup()
     
-    ok_button = ctk.CTkButton(button_frame, text="OK", command=okButton, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    ok_button = ctk.CTkButton(button_frame, text="OK", command=ok_button_function, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     ok_button.grid(row = 0, column = 1, padx=10)
     SETTINGS_POPUPS.append(popup)
 
@@ -597,11 +597,11 @@ def openScanSettings():
     apply_button = ctk.CTkButton(button_frame, text="Apply", command=saveConfig, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     apply_button.grid(row = 0, column = 0, padx = 10, pady=5)
 
-    def okButton():
+    def ok_button_function():
         saveConfig()
         close_popup()
     
-    ok_button = ctk.CTkButton(button_frame, text="OK", command=okButton, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    ok_button = ctk.CTkButton(button_frame, text="OK", command=ok_button_function, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     ok_button.grid(row = 0, column = 1, padx=10)
 
     refresh_listbox()
@@ -632,7 +632,7 @@ ctk.set_default_color_theme("green")
 top_ribbon_label = ctk.CTkLabel(root, text="Rescan Helper", font=("Arial",20,"bold"))
 top_ribbon_label.pack(pady = 5)
 # Create a scrolled text area
-text_area = scrolledtext.ScrolledText(root, wrap="word", width=55, height=6, background = GREY, foreground = "white")
+text_area = tk.scrolledtext.ScrolledText(root, wrap="word", width=55, height=6, background = GREY, foreground = "white")
 text_area.insert("1.0", "Paste email's contents here")
 text_area.pack(padx=10, pady=10)
 
