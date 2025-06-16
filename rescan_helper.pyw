@@ -148,6 +148,12 @@ def lookUpVITs():
     wb.open(urlToOpen)
     print("VITs looked up")
 
+def validate_ip(ip_str: str):
+    try:
+        ipaddress.ip_address(ip_str)
+    except ValueError:
+        raise LookupError(f"Invalid IP address format: {ip_str}")
+
 def lookUpQIDsAndIPs():
     global VITLIST
     text = text_area.get("1.0", "end").split("Integration run\n")
@@ -155,12 +161,6 @@ def lookUpQIDsAndIPs():
         print("Error table wasn't copied properly!\nTo add QIDs and IPs with no VIT attached, please use the buttons under the listboxes.")
         return
 
-
-    def validate_ip(ip_str):
-        try:
-            ipaddress.ip_address(ip_str)
-        except ValueError:
-            raise LookupError(f"Invalid IP address format: {ip_str}")
     # find the custom headers the user is using for their vit detection table
     # then use this to find QID, VIT, IP, and CI
     header = text[0].split("Currently in read mode.")[1].split("\n")
@@ -240,8 +240,8 @@ def lookUpQIDsAndIPs():
     #Opens Cloud Agent manager in Qualys
     wb.open(f"https://qualysguard.{QUALYS_PLATFORM}/portal-front/module/ca/#tab=ca-agents.datalist-agents")
     #Copies IPs to clipboard in ip1 OR ip2 OR ip3 OR ... formating
-    checkIps = ' OR '.join(cis)
-    copy(checkIps)
+    check_ips = ' OR '.join(cis)
+    copy(check_ips)
 
     #Clears lists and adds the new variables
     vits_listbox.delete(0, "end")
@@ -642,22 +642,22 @@ root.title("Rescan Helper")
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
 
-top_ribbon_label = ctk.CTkLabel(root, text="Rescan Helper", font=("Arial",20,"bold"))
-top_ribbon_label.pack(pady = 5)
+main_top_ribbon_label = ctk.CTkLabel(root, text="Rescan Helper", font=("Arial",20,"bold"))
+main_top_ribbon_label.pack(pady = 5)
 # Create a scrolled text area
 text_area = scrolledtext.ScrolledText(root, wrap="word", width=55, height=6, background = GREY, foreground = "white")
 text_area.insert("1.0", "Paste email's contents here")
 text_area.pack(padx=10, pady=10)
 
 # Create a frame for the buttons
-button_frame = ctk.CTkFrame(root)
-button_frame.pack(pady=10)
+main_button_frame = ctk.CTkFrame(root)
+main_button_frame.pack(pady=10)
 
 # Create the buttons
-button_vits = ctk.CTkButton(button_frame, text="Look up VIT(s)", command=lookUpVITs, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
+button_vits = ctk.CTkButton(main_button_frame, text="Look up VIT(s)", command=lookUpVITs, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_vits.grid(row=0, column=0, padx=10, pady=5)
 
-button_qids_ips = ctk.CTkButton(button_frame, text="Look up QID(s) and IP(s)", command=lookUpQIDsAndIPs, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
+button_qids_ips = ctk.CTkButton(main_button_frame, text="Look up QID(s) and IP(s)", command=lookUpQIDsAndIPs, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_qids_ips.grid(row=0, column=1, padx=10)
 
 # Create a frame for the list boxes and their controls
@@ -709,22 +709,22 @@ ips_copy_button = ctk.CTkButton(list_frame, text="Copy", command=lambda: copy(",
 ips_copy_button.grid(row=5,column=2, padx=10, pady=5)
 
 # Create a frame for the buttons
-button_frame2 = ctk.CTkFrame(root)
-button_frame2.pack(pady=10)
+main_button_frame2 = ctk.CTkFrame(root)
+main_button_frame2.pack(pady=10)
 
 #Buttons
-button_login = ctk.CTkButton(button_frame2, text="Login to Qualys", command=lambda: wb.open(LOGIN_URL), fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
+button_login = ctk.CTkButton(main_button_frame2, text="Login to Qualys", command=lambda: wb.open(LOGIN_URL), fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_login.grid(row=0, column=0, padx=10, pady=5)
 
-button_open_vmdr = ctk.CTkButton(button_frame2, text="Open VMDR", command=open_vmdr, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
+button_open_vmdr = ctk.CTkButton(main_button_frame2, text="Open VMDR", command=open_vmdr, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_open_vmdr.grid(row=0, column=1, padx=10)
 
-button_copy_email = ctk.CTkButton(button_frame2, text="Email copy paste",
+button_copy_email = ctk.CTkButton(main_button_frame2, text="Email copy paste",
                                   command=lambda: copy("VIT(s) closed, vulnerabilities have been fixed according to rescan."),
                                   fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_copy_email.grid(row=1, column=0, pady=5, padx=10)
 
-button_get_vits_to_close = ctk.CTkButton(button_frame2, text="Get VITs to close", command=open_vits_fixed, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
+button_get_vits_to_close = ctk.CTkButton(main_button_frame2, text="Get VITs to close", command=open_vits_fixed, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_get_vits_to_close.grid(row=1, column=1, pady=5, padx=10)
 
 # Create a frame for the dropdown and launch scan button
