@@ -144,17 +144,17 @@ def look_up_vits():
     text = text_area.get("1.0", "end").strip()
     vits = re.findall(r"[Vv][Ii][Tt]\d{7,8}", text)
     # pylint: disable=line-too-long
-    urlToOpen = f"https://{SNOW_URL}/now/nav/ui/classic/params/target/sn_vul_detection_list.do%3Fsysparm_query%3Dstatus%253D0%255Evulnerable_item.numberIN"+"%252C".join(vits)+"%26sysparm_first_row%3D1%26sysparm_view%3D"
-    wb.open(urlToOpen)
+    url_to_open = f"https://{SNOW_URL}/now/nav/ui/classic/params/target/sn_vul_detection_list.do%3Fsysparm_query%3Dstatus%253D0%255Evulnerable_item.numberIN"+"%252C".join(vits)+"%26sysparm_first_row%3D1%26sysparm_view%3D"
+    wb.open(url_to_open)
     print("VITs looked up")
 
 def validate_ip(ip_str: str):
     try:
         ipaddress.ip_address(ip_str)
-    except ValueError:
-        raise LookupError(f"Invalid IP address format: {ip_str}")
+    except ValueError as exc:
+        raise ValueError(f"Invalid IP address format: {ip_str}") from exc
 
-def lookUpQIDsAndIPs():
+def look_up_qids_and_ips():
     # pylint: disable=global-variable-not-assigned
     global VITLIST
     text = text_area.get("1.0", "end").split("Integration run\n")
@@ -197,31 +197,31 @@ def lookUpQIDsAndIPs():
         except:
             columns = columns[:2] + [first_found] + [last_found] + [last_element] + columns[3:]
 
-        columnDiff = len(columns) - len(header)
+        column_diff = len(columns) - len(header)
 
         #proof column text likes to use tabs for some reason, and tabs is how we differentiate between columns so we need cosolidate entries
-        if columnDiff>0:
-            proofIndex = header.index("Proof")
-            for i in range(columnDiff):
-                columns[proofIndex] += "\t"+columns[proofIndex+1]
-                columns.pop(proofIndex+1)
+        if column_diff>0:
+            proof_index = header.index("Proof")
+            for i in range(column_diff):
+                columns[proof_index] += "\t"+columns[proof_index+1]
+                columns.pop(proof_index+1)
 
-        detectionData = {}
+        detection_data = {}
         for i in range(len(columns)):
-            detectionData[header[i]] = columns[i]
+            detection_data[header[i]] = columns[i]
 
-        vit: str = detectionData["Vulnerable item"]
+        vit: str = detection_data["Vulnerable item"]
         if not vit.startswith("VIT"):
             raise LookupError("Error when copying data from SNOW over!")
 
-        qid: str = str(detectionData["Vulnerability"])
+        qid: str = str(detection_data["Vulnerability"])
         if not qid.startswith("QID"):
             raise LookupError("Error when copying data from SNOW over!")
 
-        ip: str = detectionData["IP address"]
+        ip: str = detection_data["IP address"]
         validate_ip(ip)
 
-        ci: str = detectionData["Configuration item"]
+        ci: str = detection_data["Configuration item"]
 
         VITLIST.append(VitObject(vit, qid, ip, ci))
         vits.append(vit)
@@ -276,16 +276,18 @@ def remove_entry(listbox: tk.Listbox):
         listbox.delete(item)
 
 def open_vmdr():
-    qidsSearch = "vulnerabilities.vulnerability.qid%3A"+"%20OR%20vulnerabilities.vulnerability.qid:".join(get_qids())
-    ipsSearch = "%20OR%20".join(ips_listbox.get(0,"end"))
+    qids_search = "vulnerabilities.vulnerability.qid%3A"+"%20OR%20vulnerabilities.vulnerability.qid:".join(get_qids())
+    ips_search = "%20OR%20".join(ips_listbox.get(0,"end"))
     # pylint: disable=line-too-long
-    wb.open(f"https://qualysguard.{QUALYS_PLATFORM}/vm/#/vulnerabilities?searchPivotToken=VULNERABILITY&source=&groupByPivot=VULNERABILITY&pageSize=50&pageNumber=0&criteria=&defaultQuery=Information%20%2CDisabled%20%2CIgnored&search="+qidsSearch+"&havingQuery="+ipsSearch)
+    wb.open(f"https://qualysguard.{QUALYS_PLATFORM}/vm/#/vulnerabilities?searchPivotToken=VULNERABILITY&source=&groupByPivot=VULNERABILITY&pageSize=50&pageNumber=0&criteria=&defaultQuery=Information%20%2CDisabled%20%2CIgnored&search="+qids_search+"&havingQuery="+ips_search)
 
 def open_vits_fixed():
     #Allows for only 1 popup at a time
+    # pylint: disable=global-variable-not-assigned
     global CLOSE_VIT_POPUPS
 
     def close_popup():
+        # pylint: disable=global-variable-not-assigned
         global CLOSE_VIT_POPUPS
         CLOSE_VIT_POPUPS[0].destroy()
         CLOSE_VIT_POPUPS.clear()
@@ -305,28 +307,28 @@ def open_vits_fixed():
     listbox = tk.Listbox(popup, width=30, height=20, background = GREY, foreground = "white")
     listbox.pack(padx=10, pady=5)
 
-    vitsFixed = retrieveAssetDetection(",".join(ips_listbox.get(0, "end")), ",".join(get_qids()), "Fixed")
-    if len(vitsFixed) > 0:
+    vits_fixed = retrieve_asset_detection(",".join(ips_listbox.get(0, "end")), ",".join(get_qids()), "Fixed")
+    if len(vits_fixed) > 0:
         copy("VIT(s) closed, vulnerabilities have been fixed according to rescan.")
-    for vit in vitsFixed:
+    for vit in vits_fixed:
         listbox.insert("end", vit)
 
-    label = ctk.CTkLabel(popup, text=f"{len(vitsFixed)} VIT(s) are labeled\nas FIXED in VMDR")
+    label = ctk.CTkLabel(popup, text=f"{len(vits_fixed)} VIT(s) are labeled\nas FIXED in VMDR")
     label.pack(pady=5)
 
     CLOSE_VIT_POPUPS.append(popup)
     #Opens SNOW VIT Table allowing for easy closing of VITs
-    wb.open(f"https://{SNOW_URL}/sn_vul_vulnerable_item_list.do?sysparm_query=active%3Dtrue%5EnumberIN"+"%2C".join(vitsFixed)+"&sysparm_first_row=1&sysparm_view=")
+    wb.open(f"https://{SNOW_URL}/sn_vul_vulnerable_item_list.do?sysparm_query=active%3Dtrue%5EnumberIN"+"%2C".join(vits_fixed)+"&sysparm_first_row=1&sysparm_view=")
 
 #Gets VITs by checking the ip and qid of each VIT, as these should be unique per VIT
-def getVitID(ip: str, qid: str) -> str:
+def get_vit_id(ip: str, qid: str) -> str:
     for vit in VITLIST:
         if vit.ip == ip and vit.qid == qid:
             return vit.vit_id
     return "-1"
 
 #Easy quering of the VMDR's assests
-def retrieveAssetDetection(ips: str, qids: str, status: str) -> list[str]:
+def retrieve_asset_detection(ips: str, qids: str, status: str) -> list[str]:
     url = f"https://qualysapi.{QUALYS_PLATFORM}/api/2.0/fo/asset/host/vm/detection/"
     if not ips or not qids or not status:
         print("Error missing parameter(s)!")
@@ -345,32 +347,33 @@ def retrieveAssetDetection(ips: str, qids: str, status: str) -> list[str]:
         print(f"Error bad response\nCode: {response.status_code}\nMessage: {response.text}")
         return []
 
-    fixedVits: list[str] = []
+    fixed_vits: list[str] = []
     #take in csv data, idk why I didn't do it this way originally
     data = response.text
 
     rows = DictReader(data.splitlines())
 
     for row in rows:
-        vitID = getVitID(row['IP Address'], "QID-"+row['QID'])
-        if vitID == "-1":
+        found_vit_id = get_vit_id(row['IP Address'], "QID-"+row['QID'])
+        if found_vit_id == "-1":
             continue
-        fixedVits.append(vitID)
+        fixed_vits.append(found_vit_id)
 
-    fixedVits = list(set(fixedVits))
-    return fixedVits
+    fixed_vits = list(set(fixed_vits))
+    return fixed_vits
 
-def openSettings():
+def open_settings():
     #Allows for only 1 popup at a time
-    global SETTINGS_POPUPS, API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SCAN_LIST
+    # pylint: disable=global-variable-not-assigned
+    global SETTINGS_POPUPS
 
-    def encodeBase64(input):
+    def encode_base64(input):
         input_string_bytes = input.encode("utf-8")
         base64_bytes = base64.b64encode(input_string_bytes)
         base64_string = base64_bytes.decode("utf-8")
         return base64_string
 
-    def decodeBase64(input):
+    def decode_base64(input):
         base64_bytes = input.encode("utf-8")
         output_string_bytes = base64.b64decode(base64_bytes)
         output_string = output_string_bytes.decode("utf-8")
@@ -380,7 +383,7 @@ def openSettings():
     def save_config():
         global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
         with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as config_file:
-            API_KEY = "BASIC " + encodeBase64(username_entry.get() + ":" + password_entry.get())
+            API_KEY = "BASIC " + encode_base64(username_entry.get() + ":" + password_entry.get())
             QUALYS_PLATFORM = qualys_platform_entry.get()
             LOGIN_URL = login_url_entry.get()
             SCANNER_APPLIANCE = ",".join(scanner_appliance_listbox.get(0,"end"))
@@ -390,6 +393,7 @@ def openSettings():
             dump(CONFIG, config_file, indent=4)
 
     def close_popup():
+        # pylint: disable=global-variable-not-assigned
         global SETTINGS_POPUPS
         SETTINGS_POPUPS[0].destroy()
         SETTINGS_POPUPS.clear()
@@ -415,7 +419,7 @@ def openSettings():
     username_label = ctk.CTkLabel(entriesFrame, text="Username:")
     username_label.grid(row=0, column=0, padx=10)
     username_entry = ctk.CTkEntry(entriesFrame, width=300)
-    apiKeyDecode = decodeBase64(API_KEY.split(" ")[1]).split(":")
+    apiKeyDecode = decode_base64(API_KEY.split(" ")[1]).split(":")
     username = apiKeyDecode.pop(0)
     username_entry.insert(0, username)
     username_entry.grid(row=0, column=1, padx=10, pady=5)
@@ -660,7 +664,7 @@ main_button_frame.pack(pady=10)
 button_vits = ctk.CTkButton(main_button_frame, text="Look up VIT(s)", command=look_up_vits, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_vits.grid(row=0, column=0, padx=10, pady=5)
 
-button_qids_ips = ctk.CTkButton(main_button_frame, text="Look up QID(s) and IP(s)", command=lookUpQIDsAndIPs, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
+button_qids_ips = ctk.CTkButton(main_button_frame, text="Look up QID(s) and IP(s)", command=look_up_qids_and_ips, fg_color=PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK)
 button_qids_ips.grid(row=0, column=1, padx=10)
 
 # Create a frame for the list boxes and their controls
@@ -767,7 +771,7 @@ scan_settings.grid(row=1, column=2, padx=5)
 button_launch_scan = ctk.CTkButton(bottom_frame, text="Launch scan", command=launch_scan, fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK)
 button_launch_scan.grid(row=3, column=1, padx=10, pady=5)
 
-settingsButton = ctk.CTkButton(root, text="⚙️", command=openSettings, fg_color =GREY, border_width=1, border_color=WHITE, hover_color=GREY_DARK, width=15)
+settingsButton = ctk.CTkButton(root, text="⚙️", command=open_settings, fg_color =GREY, border_width=1, border_color=WHITE, hover_color=GREY_DARK, width=15)
 settingsButton.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=5)
 
 # Run the application
