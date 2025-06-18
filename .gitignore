@@ -6,3 +6,4 @@ dist
 config
 *.spec
 __pycache__
+.vscode

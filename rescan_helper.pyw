@@ -10,34 +10,34 @@ from os import path, makedirs, getenv
 import base64
 import ipaddress
 
-# thrid party imports
+# third party imports
 import requests
 import customtkinter as ctk
 from pyperclip import copy
 #Checks if the folder config exists in current directory
 #On first run, will create config folder and template config.json
-rescanHelperPath = getenv("APPDATA")+"/RescanHelper"
-if not path.exists(rescanHelperPath+"/config/config.json"):
-    if not path.exists(rescanHelperPath+"/config"):
-        makedirs(rescanHelperPath+"/config")
-    if not path.exists(rescanHelperPath):
-        makedirs(rescanHelperPath)
+rescan_helper_path = getenv("APPDATA")+"/RescanHelper"
+if not path.exists(rescan_helper_path+"/config/config.json"):
+    if not path.exists(rescan_helper_path+"/config"):
+        makedirs(rescan_helper_path+"/config")
+    if not path.exists(rescan_helper_path):
+        makedirs(rescan_helper_path)
 
-    with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as f:
+    with open(rescan_helper_path+"/config/config.json", "w", encoding="UTF-8") as f:
         # pylint: disable=line-too-long
         f.write("{\"API_KEY\":\"BASIC VXNlcm5hbWU6UGFzc3dvcmQ=\",\"QUALYS_PLATFORM\":\"YOUR_QUALYS_PLATFORM_HERE\",\"LOGIN_URL\":\"https://YOUR_LOGIN_URL_HERE\",\"SNOW_URL\":\"YOUR_SNOW_URL_HERE\",\"SCANNER_APPLIANCE\":\"scanner1,scanner2,...\",\"SCAN_LIST\":{\"CHANGE NAME IN SETTINGS\":{\"SEARCH_LIST_ID\": \"ENTER SEARCH LIST\", \"OP_ID\": \"ENTER OPTION PROFILE\"}}}")
         f.close()
 
 def get_config():
     """Loads the config file and updates the variables"""
-    with open(rescanHelperPath+"/config/config.json", encoding="UTF-8") as config_file:
+    with open(rescan_helper_path+"/config/config.json", encoding="UTF-8") as config_file:
         config = load(config_file)
         return config
 
 # pylint: disable=too-few-public-methods
 class VitObject:
     """
-        This class is to allow for autocompletions in the IDE and it helps enforce types
+        This class is to allow for auto-completions in the IDE and it helps enforce types
         A VitObject can be thought of as an entry from SNOW, but we exclude all the info we don't need
     """
     def __init__(self, vit_id, qid, ip, ci):
@@ -48,7 +48,7 @@ class VitObject:
 
 #Global variables
 CONFIG = get_config()
-VITLIST: list[VitObject] = []
+VIT_LIST: list[VitObject] = []
 CLOSE_VIT_POPUPS = []
 SETTINGS_POPUPS = []
 SCAN_SETTINGS_POPUPS = []
@@ -187,16 +187,16 @@ def look_up_qids_and_ips():
         Takes in SNOW text the user supplied (hopefully we can deprecate this soon :])
     """
     # pylint: disable=global-variable-not-assigned
-    global VITLIST
+    global VIT_LIST
     text, header = cleanup_snow_table_text(text_area)
 
     vits: list[str] = []
     qids: list[str] = []
     ips: list[str] = []
     cis: list[str] = []
-    VITLIST.clear()
+    VIT_LIST.clear()
     #for each line in the copy paste area, check if VIT, QID, and IP, are present
-    #if so then add VIT to global VITLIST
+    #if so then add VIT to global VIT_LIST
     #And updated the visual vits, qids, and ips array
     for entry in text:
         columns = entry.split("\t")
@@ -218,7 +218,7 @@ def look_up_qids_and_ips():
 
         column_diff = len(columns) - len(header)
 
-        #proof column text likes to use tabs for some reason, and tabs is how we differentiate between columns so we need cosolidate entries
+        #proof column text likes to use tabs for some reason, and tabs is how we differentiate between columns so we need to consolidate entries
         if column_diff>0:
             proof_index = header.index("Proof")
             for i in range(column_diff):
@@ -243,7 +243,7 @@ def look_up_qids_and_ips():
 
         ci: str = detection_data["Configuration item"]
 
-        VITLIST.append(VitObject(vit, qid, ip, ci))
+        VIT_LIST.append(VitObject(vit, qid, ip, ci))
         vits.append(vit)
         qids.append(qid)
         ips.append(ip)
@@ -260,7 +260,7 @@ def look_up_qids_and_ips():
     wb.open(f"https://{SNOW_URL}/sn_vul_third_party_entry_list.do?sysparm_query=sourceSTARTSWITHQ%5Esearch_listsLIKEc97b18c21b9a4d5032ceedb1bc4bcb9f%5EORsearch_listsLIKE219bd8061b9a4d5032ceedb1bc4bcbfc%5EidIN"+"%2C".join(qids)+"&sysparm_first_row=1&sysparm_view=")
     #Opens Cloud Agent manager in Qualys
     wb.open(f"https://qualysguard.{QUALYS_PLATFORM}/portal-front/module/ca/#tab=ca-agents.datalist-agents")
-    #Copies IPs to clipboard in ip1 OR ip2 OR ip3 OR ... formating
+    #Copies IPs to clipboard in ip1 OR ip2 OR ip3 OR ... format
     check_ips = ' OR '.join(cis)
     copy(check_ips)
 
@@ -348,7 +348,7 @@ def open_vits_fixed():
 
 def get_vit_id(ip: str, qid: str) -> str:
     """Gets VITs by checking the ip and qid of each VIT, as these should be unique per VIT"""
-    for vit in VITLIST:
+    for vit in VIT_LIST:
         if vit.ip == ip and vit.qid == qid:
             return vit.vit_id
     return "-1"
@@ -408,7 +408,7 @@ def settings_save_config(new_username: ctk.CTkEntry, new_password: ctk.CTkEntry,
     """Function to easily save config file updates from the settings menu"""
     # pylint: disable=global-statement
     global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
-    with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as config_file:
+    with open(rescan_helper_path+"/config/config.json", "w", encoding="UTF-8") as config_file:
         API_KEY = "BASIC " + encode_base64(new_username.get() + ":" + new_password.get())
         QUALYS_PLATFORM = new_qualys_platform.get()
         LOGIN_URL = new_login_url.get()
@@ -548,7 +548,7 @@ def open_scan_settings():
         global CONFIG, SCAN_LIST
         add_modify_entry()
         SCAN_LIST = scans
-        with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as config_file:
+        with open(rescan_helper_path+"/config/config.json", "w", encoding="UTF-8") as config_file:
             refresh_scan_display()
             CONFIG = {'API_KEY':API_KEY, 'QUALYS_PLATFORM':QUALYS_PLATFORM, 'LOGIN_URL':LOGIN_URL, 'SCANNER_APPLIANCE':SCANNER_APPLIANCE, 'SNOW_URL':SNOW_URL, 'SCAN_LIST':SCAN_LIST}
             dump(CONFIG, config_file, indent=4)
@@ -632,7 +632,7 @@ def open_scan_settings():
     def on_listbox_select(event):
         """
             Called when user selects a scan from the listbox in scan_settings
-            This populats the entry fields
+            This populates the entry fields
         """
         selected = scan_listbox.curselection()
         if selected:
