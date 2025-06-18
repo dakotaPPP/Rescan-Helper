@@ -30,10 +30,11 @@ if not path.exists(rescanHelperPath+"/config/config.json"):
 
 def get_config():
     """Loads the config file and updates the variables"""
-    config_file = open(rescanHelperPath+"/config/config.json", encoding="UTF-8")
-    config = load(config_file)
-    return config
+    with open(rescanHelperPath+"/config/config.json", encoding="UTF-8") as config_file:
+        config = load(config_file)
+        return config
 
+# pylint: disable=too-few-public-methods
 class VitObject:
     """
         This class is to allow for autocompletions in the IDE and it helps enforce types
@@ -162,17 +163,11 @@ def validate_ip(ip_str: str):
     except ValueError as exc:
         raise ValueError(f"Invalid IP address format: {ip_str}") from exc
 
-def look_up_qids_and_ips():
-    """
-        Function for the look up qids and ips button
-        Takes in SNOW text the user supplied (hopefully we can deprecate this soon :])
-    """
-    # pylint: disable=global-variable-not-assigned
-    global VITLIST
-    text = text_area.get("1.0", "end").split("Integration run\n")
+def cleanup_snow_table_text(scrolled_text_obj: scrolledtext.ScrolledText) -> tuple[list[str], list[str]]:
+    """Helper function that returns the properly formatted text"""
+    text = scrolled_text_obj.get("1.0", "end").split("Integration run\n")
     if len(text) == 1:
-        print("Error table wasn't copied properly!\nTo add QIDs and IPs with no VIT attached, please use the buttons under the listboxes.")
-        return
+        raise LookupError("Error table wasn't copied properly!\nTo add QIDs and IPs with no VIT attached, please use the buttons under the listboxes.")
 
     # find the custom headers the user is using for their vit detection table
     # then use this to find QID, VIT, IP, and CI
@@ -183,6 +178,18 @@ def look_up_qids_and_ips():
     text[1] = text[1].replace("OpenSSH","")
     text = text[1].replace("\n","").split("Showing rows")[0].split("Open")
     text = text[1:]
+    return text, header
+
+# pylint: disable=too-many-locals,too-many-statements
+def look_up_qids_and_ips():
+    """
+        Function for the look up qids and ips button
+        Takes in SNOW text the user supplied (hopefully we can deprecate this soon :])
+    """
+    # pylint: disable=global-variable-not-assigned
+    global VITLIST
+    text, header = cleanup_snow_table_text(text_area)
+
     vits: list[str] = []
     qids: list[str] = []
     ips: list[str] = []
@@ -206,7 +213,7 @@ def look_up_qids_and_ips():
         try:
             validate_ip(last_element)
             columns = columns[:2] + [first_found] + [last_found] + [""] + [""] + [last_element] + columns[3:]
-        except:
+        except ValueError:
             columns = columns[:2] + [first_found] + [last_found] + [last_element] + columns[3:]
 
         column_diff = len(columns) - len(header)
@@ -219,6 +226,7 @@ def look_up_qids_and_ips():
                 columns.pop(proof_index+1)
 
         detection_data = {}
+        # pylint: disable=consider-using-enumerate
         for i in range(len(columns)):
             detection_data[header[i]] = columns[i]
 
@@ -272,8 +280,6 @@ def look_up_qids_and_ips():
         ips_listbox.insert("end", ip)
     ips_label.configure(text =f"{len(ips)} - IP(s)")
 
-    print("VITs, QIDs, and IPs tables populated!")
-
 def add_entry(listbox, entry):
     """Takes in a listbox and an entry value to add to the listbox"""
     value = entry.get()
@@ -319,7 +325,7 @@ def open_vits_fixed():
     popup = ctk.CTkToplevel()
     popup.protocol("WM_DELETE_WINDOW", close_popup)
     popup.title("VITs that can close")
-    popup.after(250, lambda: popup.lift())
+    popup.after(250, popup.lift())
     popup.attributes("-topmost", True)
     popup.after_idle(popup.attributes, "-topmost", False)
 
@@ -382,23 +388,25 @@ def retrieve_asset_detection(ips: str, qids: str, status: str) -> list[str]:
     result_vits= list(set(result_vits))
     return result_vits
 
-def encode_base64(input):
+def encode_base64(input_string: str):
     """Helper function to easily encode a string into base64"""
-    input_string_bytes = input.encode("utf-8")
+    input_string_bytes = input_string.encode("utf-8")
     base64_bytes = base64.b64encode(input_string_bytes)
     base64_string = base64_bytes.decode("utf-8")
     return base64_string
 
-def decode_base64(input):
+def decode_base64(input_str: str):
     """Helper function to easily decode a string into base64"""
-    base64_bytes = input.encode("utf-8")
+    base64_bytes = input_str.encode("utf-8")
     output_string_bytes = base64.b64decode(base64_bytes)
     output_string = output_string_bytes.decode("utf-8")
     return output_string
 
+# pylint: disable=too-many-positional-arguments,too-many-arguments
 def settings_save_config(new_username: ctk.CTkEntry, new_password: ctk.CTkEntry, new_qualys_platform: ctk.CTkEntry,
                          new_login_url: ctk.CTkEntry, new_scanner_appliance: tk.Listbox, new_snow_url: ctk.CTkEntry):
     """Function to easily save config file updates from the settings menu"""
+    # pylint: disable=global-statement
     global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
     with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as config_file:
         API_KEY = "BASIC " + encode_base64(new_username.get() + ":" + new_password.get())
@@ -411,11 +419,11 @@ def settings_save_config(new_username: ctk.CTkEntry, new_password: ctk.CTkEntry,
         dump(CONFIG, config_file, indent=4)
 
 def settings_close_popup():
-        """Close the settings popups"""
-        # pylint: disable=global-variable-not-assigned
-        global SETTINGS_POPUPS
-        SETTINGS_POPUPS[0].destroy()
-        SETTINGS_POPUPS.clear()
+    """Close the settings popups"""
+    # pylint: disable=global-variable-not-assigned
+    global SETTINGS_POPUPS
+    SETTINGS_POPUPS[0].destroy()
+    SETTINGS_POPUPS.clear()
 
 def open_settings():
     """
@@ -431,7 +439,7 @@ def open_settings():
     popup = ctk.CTkToplevel()
     popup.protocol("WM_DELETE_WINDOW", settings_close_popup)
     popup.title("Settings")
-    popup.after(250, lambda: popup.lift())
+    popup.after(250, popup.lift())
     popup.attributes("-topmost", True)
     popup.after_idle(popup.attributes, "-topmost", False)
 
@@ -536,6 +544,7 @@ def open_scan_settings():
     scans = SCAN_LIST.copy()
     def scan_settings_save_config():
         """Saves the scan settings to the config file"""
+        # pylint: disable=global-statement
         global CONFIG, SCAN_LIST
         add_modify_entry()
         SCAN_LIST = scans
@@ -551,7 +560,7 @@ def open_scan_settings():
     popup = ctk.CTkToplevel()
     popup.protocol("WM_DELETE_WINDOW", scan_settings_close_popup)
     popup.title("Scan Settings")
-    popup.after(250, lambda: popup.lift())
+    popup.after(250, popup.lift())
     popup.attributes("-topmost", True)
     popup.after_idle(popup.attributes, "-topmost", False)
 
@@ -617,6 +626,9 @@ def open_scan_settings():
         for name in scans:
             scan_listbox.insert('end', name)
 
+    # The listbox function call of on select requires you to catch the event, even if nothing occurs
+    # Therefore the event argument is unused but it must be here
+    # pylint: disable=unused-argument
     def on_listbox_select(event):
         """
             Called when user selects a scan from the listbox in scan_settings
