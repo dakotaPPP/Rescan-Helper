@@ -29,11 +29,16 @@ if not path.exists(rescanHelperPath+"/config/config.json"):
         f.close()
 
 def get_config():
+    """Loads the config file and updates the variables"""
     config_file = open(rescanHelperPath+"/config/config.json", encoding="UTF-8")
     config = load(config_file)
     return config
 
 class VitObject:
+    """
+        This class is to allow for autocompletions in the IDE and it helps enforce types
+        A VitObject can be thought of as an entry from SNOW, but we exclude all the info we don't need
+    """
     def __init__(self, vit_id, qid, ip, ci):
         self.vit_id = str(vit_id)
         self.qid = str(qid)
@@ -54,14 +59,15 @@ SCANNER_APPLIANCE: str = CONFIG["SCANNER_APPLIANCE"]
 SNOW_URL: str = CONFIG["SNOW_URL"]
 SCAN_LIST: str = CONFIG["SCAN_LIST"]
 
-#grabs qid from listbox object
 def get_qids() -> list[str]:
+    """Grabs the qids from the qid listbox object"""
     qid_numbers: list[str] = []
     for qid in qids_listbox.get(0,"end"):
         qid_numbers.append(qid[4:])
     return qid_numbers
 
 def update_search_list(input_id: str) -> int:
+    """If the scan type involves updating a search list this api function is called to update it"""
     print("Updating search list...")
     url = f"https://qualysapi.{QUALYS_PLATFORM}/api/2.0/fo/qid/search_list/static/"
 
@@ -83,8 +89,8 @@ def update_search_list(input_id: str) -> int:
 
     return 0
 
-# Easy api requesting for launching a scan
 def launch_scan_helper(title, option, appliances, ips) -> int:
+    """Easy api requesting for launching a scan in Qualys"""
     print("Launching scan...")
 
     if len(ips) == 0:
@@ -108,8 +114,8 @@ def launch_scan_helper(title, option, appliances, ips) -> int:
     print("Error while launching, scan canceled.")
     return -1
 
-# is the launch scan button function
 def launch_scan():
+    """function called whenever the 'launch scan' button is pressed"""
     ips_arr = ips_listbox.get(0, "end")
 
     if len(ips_arr) == 0:
@@ -141,6 +147,7 @@ def launch_scan():
     return 0
 
 def look_up_vits():
+    """Grabs the vits from the vit listbox object"""
     text = text_area.get("1.0", "end").strip()
     vits = re.findall(r"[Vv][Ii][Tt]\d{7,8}", text)
     # pylint: disable=line-too-long
@@ -149,12 +156,17 @@ def look_up_vits():
     print("VITs looked up")
 
 def validate_ip(ip_str: str):
+    """Ensures the input is in valid ip format, if not raise error"""
     try:
         ipaddress.ip_address(ip_str)
     except ValueError as exc:
         raise ValueError(f"Invalid IP address format: {ip_str}") from exc
 
 def look_up_qids_and_ips():
+    """
+        Function for the look up qids and ips button
+        Takes in SNOW text the user supplied (hopefully we can deprecate this soon :])
+    """
     # pylint: disable=global-variable-not-assigned
     global VITLIST
     text = text_area.get("1.0", "end").split("Integration run\n")
@@ -262,31 +274,39 @@ def look_up_qids_and_ips():
 
     print("VITs, QIDs, and IPs tables populated!")
 
-#Used for adding to listbox
 def add_entry(listbox, entry):
+    """Takes in a listbox and an entry value to add to the listbox"""
     value = entry.get()
     if value:
         listbox.insert("end", value)
         entry.delete(0, "end")
 
-#Used for removing from listbox
 def remove_entry(listbox: tk.Listbox):
+    """Takes in whatever the user has selected from a listbox object and deletes the selected rows"""
     selected_items = listbox.curselection()
     for item in selected_items[::-1]:
         listbox.delete(item)
 
 def open_vmdr():
+    """Bookmark to quickly open VMDR to check results of a scan"""
     qids_search = "vulnerabilities.vulnerability.qid%3A"+"%20OR%20vulnerabilities.vulnerability.qid:".join(get_qids())
     ips_search = "%20OR%20".join(ips_listbox.get(0,"end"))
     # pylint: disable=line-too-long
     wb.open(f"https://qualysguard.{QUALYS_PLATFORM}/vm/#/vulnerabilities?searchPivotToken=VULNERABILITY&source=&groupByPivot=VULNERABILITY&pageSize=50&pageNumber=0&criteria=&defaultQuery=Information%20%2CDisabled%20%2CIgnored&search="+qids_search+"&havingQuery="+ips_search)
 
 def open_vits_fixed():
+    """
+        Opens the vits fixed popup
+        Based on a query from the VMDR utilizing the current IPs and QIDs list
+        It checks if the values are now marked as fixed (checks from last 3 days so old records aren't kept)
+        [Probably should update to check if status = active and is a newer entry]
+    """
     #Allows for only 1 popup at a time
     # pylint: disable=global-variable-not-assigned
     global CLOSE_VIT_POPUPS
 
     def close_popup():
+        """Closes the vits fixed popup to ensure screen doesn't get overload with windows"""
         # pylint: disable=global-variable-not-assigned
         global CLOSE_VIT_POPUPS
         CLOSE_VIT_POPUPS[0].destroy()
@@ -320,15 +340,15 @@ def open_vits_fixed():
     #Opens SNOW VIT Table allowing for easy closing of VITs
     wb.open(f"https://{SNOW_URL}/sn_vul_vulnerable_item_list.do?sysparm_query=active%3Dtrue%5EnumberIN"+"%2C".join(vits_fixed)+"&sysparm_first_row=1&sysparm_view=")
 
-#Gets VITs by checking the ip and qid of each VIT, as these should be unique per VIT
 def get_vit_id(ip: str, qid: str) -> str:
+    """Gets VITs by checking the ip and qid of each VIT, as these should be unique per VIT"""
     for vit in VITLIST:
         if vit.ip == ip and vit.qid == qid:
             return vit.vit_id
     return "-1"
 
-#Easy quering of the VMDR's assests
 def retrieve_asset_detection(ips: str, qids: str, status: str) -> list[str]:
+    """Queries the VMDR and returns a list of vit ids that match the specified status"""
     url = f"https://qualysapi.{QUALYS_PLATFORM}/api/2.0/fo/asset/host/vm/detection/"
     if not ips or not qids or not status:
         print("Error missing parameter(s)!")
@@ -347,64 +367,69 @@ def retrieve_asset_detection(ips: str, qids: str, status: str) -> list[str]:
         print(f"Error bad response\nCode: {response.status_code}\nMessage: {response.text}")
         return []
 
-    fixed_vits: list[str] = []
+    result_vits: list[str] = []
     #take in csv data, idk why I didn't do it this way originally
     data = response.text
 
-    rows = DictReader(data.splitlines())
+    rows: list[str] = DictReader(data.splitlines())
 
     for row in rows:
         found_vit_id = get_vit_id(row['IP Address'], "QID-"+row['QID'])
         if found_vit_id == "-1":
             continue
-        fixed_vits.append(found_vit_id)
+        result_vits.append(found_vit_id)
 
-    fixed_vits = list(set(fixed_vits))
-    return fixed_vits
+    result_vits= list(set(result_vits))
+    return result_vits
 
-def open_settings():
-    #Allows for only 1 popup at a time
-    # pylint: disable=global-variable-not-assigned
-    global SETTINGS_POPUPS
+def encode_base64(input):
+    """Helper function to easily encode a string into base64"""
+    input_string_bytes = input.encode("utf-8")
+    base64_bytes = base64.b64encode(input_string_bytes)
+    base64_string = base64_bytes.decode("utf-8")
+    return base64_string
 
-    def encode_base64(input):
-        input_string_bytes = input.encode("utf-8")
-        base64_bytes = base64.b64encode(input_string_bytes)
-        base64_string = base64_bytes.decode("utf-8")
-        return base64_string
+def decode_base64(input):
+    """Helper function to easily decode a string into base64"""
+    base64_bytes = input.encode("utf-8")
+    output_string_bytes = base64.b64decode(base64_bytes)
+    output_string = output_string_bytes.decode("utf-8")
+    return output_string
 
-    def decode_base64(input):
-        base64_bytes = input.encode("utf-8")
-        output_string_bytes = base64.b64decode(base64_bytes)
-        output_string = output_string_bytes.decode("utf-8")
-        return output_string
+def settings_save_config(new_username: ctk.CTkEntry, new_password: ctk.CTkEntry, new_qualys_platform: ctk.CTkEntry,
+                         new_login_url: ctk.CTkEntry, new_scanner_appliance: tk.Listbox, new_snow_url: ctk.CTkEntry):
+    """Function to easily save config file updates from the settings menu"""
+    global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
+    with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as config_file:
+        API_KEY = "BASIC " + encode_base64(new_username.get() + ":" + new_password.get())
+        QUALYS_PLATFORM = new_qualys_platform.get()
+        LOGIN_URL = new_login_url.get()
+        SCANNER_APPLIANCE = ",".join(new_scanner_appliance.get(0,"end"))
+        SNOW_URL = new_snow_url.get()
 
-    #updates all global variables and saves to config file
-    def save_config():
-        global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
-        with open(rescanHelperPath+"/config/config.json", "w", encoding="UTF-8") as config_file:
-            API_KEY = "BASIC " + encode_base64(username_entry.get() + ":" + password_entry.get())
-            QUALYS_PLATFORM = qualys_platform_entry.get()
-            LOGIN_URL = login_url_entry.get()
-            SCANNER_APPLIANCE = ",".join(scanner_appliance_listbox.get(0,"end"))
-            SNOW_URL = snow_url_entry.get()
+        CONFIG = {'API_KEY':API_KEY, 'QUALYS_PLATFORM':QUALYS_PLATFORM, 'LOGIN_URL':LOGIN_URL, 'SCANNER_APPLIANCE':SCANNER_APPLIANCE, 'SNOW_URL':SNOW_URL, 'SCAN_LIST':SCAN_LIST}
+        dump(CONFIG, config_file, indent=4)
 
-            CONFIG = {'API_KEY':API_KEY, 'QUALYS_PLATFORM':QUALYS_PLATFORM, 'LOGIN_URL':LOGIN_URL, 'SCANNER_APPLIANCE':SCANNER_APPLIANCE, 'SNOW_URL':SNOW_URL, 'SCAN_LIST':SCAN_LIST}
-            dump(CONFIG, config_file, indent=4)
-
-    def close_popup():
+def settings_close_popup():
+        """Close the settings popups"""
         # pylint: disable=global-variable-not-assigned
         global SETTINGS_POPUPS
         SETTINGS_POPUPS[0].destroy()
         SETTINGS_POPUPS.clear()
 
+def open_settings():
+    """
+        Opens the settings page where the user can enter info to update the config file
+    """
+    #Allows for only 1 popup at a time
+    # pylint: disable=global-variable-not-assigned
+    global SETTINGS_POPUPS
     if len(SETTINGS_POPUPS) == 1:
-        close_popup()
-
+        settings_close_popup()
 
     #Ensures pop up isn't hidden behind program
     popup = ctk.CTkToplevel()
-    popup.protocol("WM_DELETE_WINDOW", close_popup)
+    popup.protocol("WM_DELETE_WINDOW", settings_close_popup)
     popup.title("Settings")
     popup.after(250, lambda: popup.lift())
     popup.attributes("-topmost", True)
@@ -431,13 +456,14 @@ def open_settings():
     password_entry.insert(1, password)
     password_entry.grid(row=1, column=1, padx=10, pady=5)
 
-    def toggleHidden(entry):
+    def toggle_hidden(entry):
+        """Toggle entry object to showcase dots or the actual text"""
         if entry.cget("show")=="\u2022":
             entry.configure(show="")
         else:
             entry.configure(show="\u2022")
 
-    toggle_hidden_password_button = ctk.CTkButton(entries_frame, text="👁", command=lambda: toggleHidden(password_entry),
+    toggle_hidden_password_button = ctk.CTkButton(entries_frame, text="👁", command=lambda: toggle_hidden(password_entry),
                                                   fg_color=GREY, border_width=2, border_color=BLACK, hover_color=GREY_DARK, width=30)
     toggle_hidden_password_button.grid(row=1,column=2, padx=10)
 
@@ -479,24 +505,37 @@ def open_settings():
 
     button_frame = ctk.CTkFrame(popup)
     button_frame.pack(pady=5)
-    apply_button = ctk.CTkButton(button_frame, text="Apply", command=save_config, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    apply_button = ctk.CTkButton(button_frame, text="Apply",
+                                command=lambda: settings_save_config(username_entry,password_entry,qualys_platform_entry,login_url_entry,scanner_appliance_listbox,snow_url_entry),
+                                fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     apply_button.grid(row = 0, column = 0, padx = 10, pady=5)
 
     def ok_button_function():
-        save_config()
-        close_popup()
+        """Saves config then closes the settings window"""
+        settings_save_config(username_entry,password_entry,qualys_platform_entry,login_url_entry,scanner_appliance_listbox,snow_url_entry)
+        settings_close_popup()
 
     ok_button = ctk.CTkButton(button_frame, text="OK", command=ok_button_function, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     ok_button.grid(row = 0, column = 1, padx=10)
     SETTINGS_POPUPS.append(popup)
 
+def scan_settings_close_popup():
+    """Closes the scan settings window"""
+    # pylint: disable=global-variable-not-assigned
+    global SCAN_SETTINGS_POPUPS
+    SCAN_SETTINGS_POPUPS[0].destroy()
+    SCAN_SETTINGS_POPUPS.clear()
+    refresh_scan_display()
+
 # pylint: disable=too-many-statements
-def openScanSettings():
+def open_scan_settings():
+    """Opens the scan settings window"""
     # pylint: disable=global-variable-not-assigned
     global SCAN_SETTINGS_POPUPS
     #updates all global variables and saves to config file
     scans = SCAN_LIST.copy()
-    def save_config():
+    def scan_settings_save_config():
+        """Saves the scan settings to the config file"""
         global CONFIG, SCAN_LIST
         add_modify_entry()
         SCAN_LIST = scans
@@ -505,20 +544,12 @@ def openScanSettings():
             CONFIG = {'API_KEY':API_KEY, 'QUALYS_PLATFORM':QUALYS_PLATFORM, 'LOGIN_URL':LOGIN_URL, 'SCANNER_APPLIANCE':SCANNER_APPLIANCE, 'SNOW_URL':SNOW_URL, 'SCAN_LIST':SCAN_LIST}
             dump(CONFIG, config_file, indent=4)
 
-    def close_popup():
-        # pylint: disable=global-variable-not-assigned
-        global SCAN_SETTINGS_POPUPS
-        SCAN_SETTINGS_POPUPS[0].destroy()
-        SCAN_SETTINGS_POPUPS.clear()
-        refresh_scan_display()
-
     if len(SCAN_SETTINGS_POPUPS) == 1:
-        close_popup()
-
+        scan_settings_close_popup()
 
     #Ensures pop up isn't hidden behind program
     popup = ctk.CTkToplevel()
-    popup.protocol("WM_DELETE_WINDOW", close_popup)
+    popup.protocol("WM_DELETE_WINDOW", scan_settings_close_popup)
     popup.title("Scan Settings")
     popup.after(250, lambda: popup.lift())
     popup.attributes("-topmost", True)
@@ -546,26 +577,26 @@ def openScanSettings():
     op_id_entry = ctk.CTkEntry(entries_frame)
     op_id_entry.grid(row=2, column=1, padx=5, pady=5)
 
-    # Function to add or modify entries in the scans dictionary
     def add_modify_entry():
+        """Function to add or modify entries in the scans dictionary"""
         name = name_entry.get()
         search_id = search_id_entry.get()
         op_id = op_id_entry.get()
 
         if name and search_id and op_id:
             scans[name] = {"SEARCH_LIST_ID": search_id, "OP_ID": op_id}
-            refresh_listbox()
+            refresh_scan_listbox()
         else:
             tk.messagebox.showerror("Error", "All fields must be filled!")
 
-    # Function to delete selected entry
     def delete_entry():
+        """Function to delete scan type entry"""
         selected = scan_listbox.curselection()
         if selected:
             name = scan_listbox.get(selected[0])
             if name in scans:
                 del scans[name]
-                refresh_listbox()
+                refresh_scan_listbox()
                 temp_scan_names = []
                 for scan_name in scans:
                     temp_scan_names.append(scan_name)
@@ -580,13 +611,17 @@ def openScanSettings():
         else:
             tk.messagebox.showerror("Error", "Please select an entry to delete.")
 
-    # Refresh the listbox to show updated scan entries
-    def refresh_listbox():
+    def refresh_scan_listbox():
+        """Refreshes the listbox to show updated scan entries"""
         scan_listbox.delete(0, 'end')
         for name in scans:
             scan_listbox.insert('end', name)
 
     def on_listbox_select(event):
+        """
+            Called when user selects a scan from the listbox in scan_settings
+            This populats the entry fields
+        """
         selected = scan_listbox.curselection()
         if selected:
             name = scan_listbox.get(selected[0])
@@ -614,17 +649,18 @@ def openScanSettings():
 
     button_frame = ctk.CTkFrame(popup)
     button_frame.pack(pady=5)
-    apply_button = ctk.CTkButton(button_frame, text="Apply", command=save_config, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
+    apply_button = ctk.CTkButton(button_frame, text="Apply", command=scan_settings_save_config, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     apply_button.grid(row = 0, column = 0, padx = 10, pady=5)
 
     def ok_button_function():
-        save_config()
-        close_popup()
+        """Saves scan settings then closes the popup"""
+        scan_settings_save_config()
+        scan_settings_close_popup()
 
     ok_button = ctk.CTkButton(button_frame, text="OK", command=ok_button_function, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=100)
     ok_button.grid(row = 0, column = 1, padx=10)
 
-    refresh_listbox()
+    refresh_scan_listbox()
     SCAN_SETTINGS_POPUPS.append(popup)
 
 #Easy to edit and read HEX values of colors used in the GUI
@@ -747,6 +783,7 @@ title_entry.grid(row=0, column=1, padx=10, pady=5)
 
 scan_types_names = []
 def refresh_scan_display():
+    """Refreshes the scan display drop down (used when saving / loading scans)"""
     scan_types_names.clear()
     for scan_name in SCAN_LIST:
         scan_types_names.append(scan_name)
@@ -764,7 +801,7 @@ scan_type_dropdown = ctk.CTkOptionMenu(bottom_frame, variable=scan_type_var, fg_
 scan_type_dropdown.grid(row=1, column=1, padx=10, pady=5)
 refresh_scan_display()
 
-scan_settings = ctk.CTkButton(bottom_frame, text="⚙️", command=openScanSettings, fg_color =PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK, width=15)
+scan_settings = ctk.CTkButton(bottom_frame, text="⚙️", command=open_scan_settings, fg_color =PURPLE, border_width=2, border_color=BLACK, hover_color=PURPLE_DARK, width=15)
 scan_settings.grid(row=1, column=2, padx=5)
 
 # Create the launch scan button
