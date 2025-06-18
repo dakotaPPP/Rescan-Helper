@@ -413,21 +413,21 @@ def open_settings():
     top_ribbon_label = ctk.CTkLabel(popup, text="Settings", font=("Arial",20,"bold"))
     top_ribbon_label.pack(pady = 5)
 
-    entriesFrame = ctk.CTkFrame(popup, fg_color=GREY_DARK)
-    entriesFrame.pack(pady=10)
+    entries_frame = ctk.CTkFrame(popup, fg_color=GREY_DARK)
+    entries_frame.pack(pady=10)
     #Label and their corresponding entry field
-    username_label = ctk.CTkLabel(entriesFrame, text="Username:")
+    username_label = ctk.CTkLabel(entries_frame, text="Username:")
     username_label.grid(row=0, column=0, padx=10)
-    username_entry = ctk.CTkEntry(entriesFrame, width=300)
-    apiKeyDecode = decode_base64(API_KEY.split(" ")[1]).split(":")
-    username = apiKeyDecode.pop(0)
+    username_entry = ctk.CTkEntry(entries_frame, width=300)
+    api_key_decode = decode_base64(API_KEY.split(" ")[1]).split(":", 1)
+    username = api_key_decode[0]
     username_entry.insert(0, username)
     username_entry.grid(row=0, column=1, padx=10, pady=5)
 
-    password_label = ctk.CTkLabel(entriesFrame, text="Password:")
+    password_label = ctk.CTkLabel(entries_frame, text="Password:")
     password_label.grid(row=1, column=0, padx=10)
-    password_entry = ctk.CTkEntry(entriesFrame, width=300, show="\u2022")
-    password = ":".join(apiKeyDecode)
+    password_entry = ctk.CTkEntry(entries_frame, width=300, show="\u2022")
+    password = api_key_decode[1]
     password_entry.insert(1, password)
     password_entry.grid(row=1, column=1, padx=10, pady=5)
 
@@ -437,39 +437,39 @@ def open_settings():
         else:
             entry.configure(show="\u2022")
 
-    toggle_hidden_password_button = ctk.CTkButton(entriesFrame, text="👁", command=lambda: toggleHidden(password_entry),
+    toggle_hidden_password_button = ctk.CTkButton(entries_frame, text="👁", command=lambda: toggleHidden(password_entry),
                                                   fg_color=GREY, border_width=2, border_color=BLACK, hover_color=GREY_DARK, width=30)
     toggle_hidden_password_button.grid(row=1,column=2, padx=10)
 
-    qualys_platform_label = ctk.CTkLabel(entriesFrame, text="Qualys Platform:")
+    qualys_platform_label = ctk.CTkLabel(entries_frame, text="Qualys Platform:")
     qualys_platform_label.grid(row=2, column=0, padx=10)
-    qualys_platform_entry = ctk.CTkEntry(entriesFrame, width=300)
+    qualys_platform_entry = ctk.CTkEntry(entries_frame, width=300)
     qualys_platform_entry.insert(0, QUALYS_PLATFORM)
     qualys_platform_entry.grid(row=2, column=1, padx=10, pady=5)
 
-    login_url_label = ctk.CTkLabel(entriesFrame, text="Login URL:")
+    login_url_label = ctk.CTkLabel(entries_frame, text="Login URL:")
     login_url_label.grid(row=3, column=0, padx=10)
-    login_url_entry = ctk.CTkEntry(entriesFrame, width=300)
+    login_url_entry = ctk.CTkEntry(entries_frame, width=300)
     login_url_entry.insert(0, LOGIN_URL)
     login_url_entry.grid(row=3, column=1, padx=10, pady=5)
 
-    snow_url_label = ctk.CTkLabel(entriesFrame, text="SNOW URL:")
+    snow_url_label = ctk.CTkLabel(entries_frame, text="SNOW URL:")
     snow_url_label.grid(row=4, column=0, padx=10)
-    snow_url_entry = ctk.CTkEntry(entriesFrame, width=300)
+    snow_url_entry = ctk.CTkEntry(entries_frame, width=300)
     snow_url_entry.insert(0, SNOW_URL)
     snow_url_entry.grid(row=4, column=1, padx=10, pady=5)
 
-    scanner_appliance_label = ctk.CTkLabel(entriesFrame, text="Scanner Appliance:")
+    scanner_appliance_label = ctk.CTkLabel(entries_frame, text="Scanner Appliance:")
     scanner_appliance_label.grid(row=5, column=0, padx=10)
-    scanner_appliance_listbox = tk.Listbox(entriesFrame, width=49, selectmode="multiple", background=GREY, foreground=WHITE)
+    scanner_appliance_listbox = tk.Listbox(entries_frame, width=49, selectmode="multiple", background=GREY, foreground=WHITE)
     scanner_appliance_listbox.grid(row=6, column=1, padx=10, pady=5)
-    scanner_appliance_add_entry = ctk.CTkEntry(entriesFrame, width=300, placeholder_text="Enter scanner appliance name")
+    scanner_appliance_add_entry = ctk.CTkEntry(entries_frame, width=300, placeholder_text="Enter scanner appliance name")
     scanner_appliance_add_entry.grid(row=5, column=1, padx=10, pady=5)
-    scanner_appliance_add_button = ctk.CTkButton(entriesFrame, text="+",
+    scanner_appliance_add_button = ctk.CTkButton(entries_frame, text="+",
                                                  command=lambda: add_entry(scanner_appliance_listbox, scanner_appliance_add_entry),
                                                  fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=30)
     scanner_appliance_add_button.grid(row=5, column=2, padx=5, pady=5)
-    scanner_appliance_remove_button = ctk.CTkButton(entriesFrame, text="-",
+    scanner_appliance_remove_button = ctk.CTkButton(entries_frame, text="-",
                                                     command=lambda: remove_entry(scanner_appliance_listbox),
                                                     fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK, width=30)
     scanner_appliance_remove_button.grid(row=6, column=2, padx=5, pady=5)
@@ -527,23 +527,23 @@ def openScanSettings():
     top_ribbon_label = ctk.CTkLabel(popup, text="Scan Settings", font=("Arial",20,"bold"))
     top_ribbon_label.pack(pady = 5)
 
-    entriesFrame = ctk.CTkFrame(popup, fg_color=GREY_DARK)
-    entriesFrame.pack(pady=10)
+    entries_frame = ctk.CTkFrame(popup, fg_color=GREY_DARK)
+    entries_frame.pack(pady=10)
 
     #Label and their corresponding entry field
-    name_label = ctk.CTkLabel(entriesFrame, text="Name:")
+    name_label = ctk.CTkLabel(entries_frame, text="Name:")
     name_label.grid(row=0, column=0, padx=5, pady=5)
-    name_entry = ctk.CTkEntry(entriesFrame)
+    name_entry = ctk.CTkEntry(entries_frame)
     name_entry.grid(row=0, column=1, padx=5, pady=5)
 
-    search_id_label = ctk.CTkLabel(entriesFrame, text="Search List ID:")
+    search_id_label = ctk.CTkLabel(entries_frame, text="Search List ID:")
     search_id_label.grid(row=1, column=0, padx=5, pady=5)
-    search_id_entry = ctk.CTkEntry(entriesFrame)
+    search_id_entry = ctk.CTkEntry(entries_frame)
     search_id_entry.grid(row=1, column=1, padx=5, pady=5)
 
-    op_id_label = ctk.CTkLabel(entriesFrame, text="Option Profile ID:")
+    op_id_label = ctk.CTkLabel(entries_frame, text="Option Profile ID:")
     op_id_label.grid(row=2, column=0, padx=5, pady=5)
-    op_id_entry = ctk.CTkEntry(entriesFrame)
+    op_id_entry = ctk.CTkEntry(entries_frame)
     op_id_entry.grid(row=2, column=1, padx=5, pady=5)
 
     # Function to add or modify entries in the scans dictionary
@@ -600,14 +600,14 @@ def openScanSettings():
                 op_id_entry.insert(0, scans[name]["OP_ID"])
 
     # Buttons for adding, modifying, and deleting entries
-    add_button = ctk.CTkButton(entriesFrame, text="+", command=add_modify_entry, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=30)
+    add_button = ctk.CTkButton(entries_frame, text="+", command=add_modify_entry, fg_color=GREEN, border_width=2, border_color=BLACK, hover_color=GREEN_DARK, width=30)
     add_button.grid(row=2, column=2, padx=5, pady=5)
 
-    delete_button = ctk.CTkButton(entriesFrame, text="-", command=delete_entry, fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK, width=30)
+    delete_button = ctk.CTkButton(entries_frame, text="-", command=delete_entry, fg_color=RED, border_width=2, border_color=BLACK, hover_color=RED_DARK, width=30)
     delete_button.grid(row=3, column=2, padx=5, pady=5)
 
     # Listbox to show current entries
-    scan_listbox = tk.Listbox(entriesFrame, width=22, height=6, background = GREY, foreground = "white")
+    scan_listbox = tk.Listbox(entries_frame, width=22, height=6, background = GREY, foreground = "white")
     scan_listbox.grid(row=3, column=1, padx=5, pady=5)
 
     scan_listbox.bind("<<ListboxSelect>>", on_listbox_select)
