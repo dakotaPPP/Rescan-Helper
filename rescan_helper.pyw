@@ -2,7 +2,7 @@
 
 import re
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import scrolledtext, messagebox
 import webbrowser as wb
 from csv import DictReader
 from json import load, dump
@@ -16,7 +16,7 @@ import customtkinter as ctk
 from pyperclip import copy
 #Checks if the folder config exists in current directory
 #On first run, will create config folder and template config.json
-rescan_helper_path = getenv("APPDATA")+"/RescanHelper"
+rescan_helper_path = getenv("APPDATA", "NULL")+"/RescanHelper"
 if not path.exists(rescan_helper_path+"/config/config.json"):
     if not path.exists(rescan_helper_path+"/config"):
         makedirs(rescan_helper_path+"/config")
@@ -58,7 +58,7 @@ QUALYS_PLATFORM: str = CONFIG["QUALYS_PLATFORM"]
 LOGIN_URL: str = CONFIG["LOGIN_URL"]
 SCANNER_APPLIANCE: str = CONFIG["SCANNER_APPLIANCE"]
 SNOW_URL: str = CONFIG["SNOW_URL"]
-SCAN_LIST: str = CONFIG["SCAN_LIST"]
+SCAN_LIST = CONFIG["SCAN_LIST"]
 
 def get_qids() -> list[str]:
     """Grabs the qids from the qid listbox object"""
@@ -325,7 +325,8 @@ def open_vits_fixed():
     popup = ctk.CTkToplevel()
     popup.protocol("WM_DELETE_WINDOW", close_popup)
     popup.title("VITs that can close")
-    popup.after(250, popup.lift())
+    # pylint: disable=unnecessary-lambda
+    popup.after(250, lambda: popup.lift())
     popup.attributes("-topmost", True)
     popup.after_idle(popup.attributes, "-topmost", False)
 
@@ -377,7 +378,7 @@ def retrieve_asset_detection(ips: str, qids: str, status: str) -> list[str]:
     #take in csv data, idk why I didn't do it this way originally
     data = response.text
 
-    rows: list[str] = DictReader(data.splitlines())
+    rows: DictReader = DictReader(data.splitlines())
 
     for row in rows:
         found_vit_id = get_vit_id(row['IP Address'], "QID-"+row['QID'])
@@ -439,7 +440,8 @@ def open_settings():
     popup = ctk.CTkToplevel()
     popup.protocol("WM_DELETE_WINDOW", settings_close_popup)
     popup.title("Settings")
-    popup.after(250, popup.lift())
+    # pylint: disable=unnecessary-lambda
+    popup.after(250, lambda: popup.lift())
     popup.attributes("-topmost", True)
     popup.after_idle(popup.attributes, "-topmost", False)
 
@@ -560,7 +562,8 @@ def open_scan_settings():
     popup = ctk.CTkToplevel()
     popup.protocol("WM_DELETE_WINDOW", scan_settings_close_popup)
     popup.title("Scan Settings")
-    popup.after(250, popup.lift())
+    # pylint: disable=unnecessary-lambda
+    popup.after(250, lambda: popup.lift())
     popup.attributes("-topmost", True)
     popup.after_idle(popup.attributes, "-topmost", False)
 
@@ -596,7 +599,7 @@ def open_scan_settings():
             scans[name] = {"SEARCH_LIST_ID": search_id, "OP_ID": op_id}
             refresh_scan_listbox()
         else:
-            tk.messagebox.showerror("Error", "All fields must be filled!")
+            messagebox.showerror("Error", "All fields must be filled!")
 
     def delete_entry():
         """Function to delete scan type entry"""
@@ -618,7 +621,7 @@ def open_scan_settings():
                     search_id_entry.insert(0, scans[temp_scan_names[0]]["SEARCH_LIST_ID"])
                     op_id_entry.insert(0, scans[temp_scan_names[0]]["OP_ID"])
         else:
-            tk.messagebox.showerror("Error", "Please select an entry to delete.")
+            messagebox.showerror("Error", "Please select an entry to delete.")
 
     def refresh_scan_listbox():
         """Refreshes the listbox to show updated scan entries"""
