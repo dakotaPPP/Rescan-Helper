@@ -15,7 +15,7 @@
 Go to [Releases](https://github.com/dakotaPPP/Rescan-Helper/releases/) on the right hand side pane in this repository and download the .exe <br />
 If instead you want to run the code via the .py file then follow the steps below:
 1. Download the [.zip file](https://github.com/dakotaPPP/Rescan-Helper/archive/refs/heads/main.zip) and extract 
-2. To install the required libaries navigate to the directory of requirements.txt and run `pip install -r requirements.txt`
+2. To install the required packages navigate to the directory of requirements.txt and run `pip install -r requirements.txt`
 
 ## On First Run
 Upon your first time running the program it will create a config folder in your appdata<br />
@@ -33,7 +33,7 @@ The VIT detections table will open, if you get a logout webpage just close that 
 6. Paste into textbox where you pasted the email
 7. Click `Look up QID(s) and IP(s)`<br />
 The `VIT(s)`, `QID(s)`, and `IP(s)` lists should populate<br />
-In your browser the QIDs table will open, showcasing which QIDs from the VITs are Cloud Agent compatable <br />
+In your browser the QIDs table will open, showcasing which QIDs from the VITs are Cloud Agent compatible <br />
 The Cloud Agent Manager in Qualys will also open, and in order to easily check if the devices in the VITs have a cloud agent, just `Ctrl + v` into the search bar! <br />
 *The above step works because the Look up QID(s) and IP(s) button copies the CIs to your clipboard* 
 8. Enter your scan title in the `Title:` field
@@ -58,7 +58,7 @@ This opens up the VIT table in SNOW and showcases all the VITs that now read as 
 ## Extra info
 ### `VIT(s)`, `QID(s)`, and `IP(s)` lists
 1. Sometimes all you have to scan is an IP and not a list of VITs<br />
-In these scenerios you'll want to go to the text box under the `IP(s)` list and click the `Add` button<br />*In theory if you paste all the IPs in the format "ip1, ip2, ip3, ..." then click `Add` the scan should still work however I'd recommend just adding them one by one*<br />
+In these scenarios you'll want to go to the text box under the `IP(s)` list and click the `Add` button<br />*In theory if you paste all the IPs in the format "ip1, ip2, ip3, ..." then click `Add` the scan should still work however I'd recommend just adding them one by one*<br />
 2. The `Copy` button under all these lists allow for easy copying and pasting of the entire list<br />Note: copying is in format entry1, entry2, entry3, ...
 
 ### Scan type configurations
