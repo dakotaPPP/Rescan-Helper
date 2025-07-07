@@ -187,6 +187,14 @@ def validate_ip(ip_str: str):
         raise ValueError(f"Invalid IP address format: {ip_str}") from exc
 
 
+def validate_ip_bool(ip_str: str):
+    try:
+        ipaddress.ip_address(ip_str)
+        return True
+    except ValueError as exc:
+        return False
+
+
 def cleanup_snow_table_text(
     scrolled_text_obj: scrolledtext.ScrolledText,
 ) -> tuple[list[str], list[str]]:
@@ -258,6 +266,8 @@ def look_up_qids_and_ips():
                 + [last_element]
                 + columns[3:]
             )
+            while not validate_ip_bool(columns[6]):
+                columns = columns[:5] + [""] + columns[5:]
 
         column_diff = len(columns) - len(header)
 
@@ -275,10 +285,12 @@ def look_up_qids_and_ips():
 
         vit: str = detection_data["Vulnerable item"]
         if not vit.startswith("VIT"):
+            print(detection_data)
             raise LookupError("Error when copying data from SNOW over!")
 
         qid: str = str(detection_data["Vulnerability"])
         if not qid.startswith("QID"):
+            print(detection_data)
             raise LookupError("Error when copying data from SNOW over!")
 
         ip: str = detection_data["IP address"]
