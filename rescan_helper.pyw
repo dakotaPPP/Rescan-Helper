@@ -25,7 +25,7 @@ if not path.exists(rescan_helper_path + "/config/config.json"):
         makedirs(rescan_helper_path + "/config")
     if not path.exists(rescan_helper_path):
         makedirs(rescan_helper_path)
-        
+
     data = {
         "API_KEY": "BASIC VXNlcm5hbWU6UGFzc3dvcmQ=",
         "QUALYS_PLATFORM": "YOUR_QUALYS_PLATFORM_HERE",
@@ -37,9 +37,9 @@ if not path.exists(rescan_helper_path + "/config/config.json"):
         "SCAN_LIST": {
             "CHANGE NAME IN SETTINGS": {
                 "SEARCH_LIST_ID": "ENTER SEARCH LIST",
-                "OP_ID": "ENTER OPTION PROFILE"
+                "OP_ID": "ENTER OPTION PROFILE",
             }
-        }
+        },
     }
 
     with open(rescan_helper_path + "/config/config.json", "w", encoding="UTF-8") as f:
@@ -179,10 +179,12 @@ def launch_scan():
     print("Scan launched!")
     return 0
 
+
 class snow_cell_object(TypedDict):
     display_value: str
     link: NotRequired[str]
     value: str
+
 
 class snow_vit_entry(TypedDict):
     cmdb_ci: snow_cell_object
@@ -190,21 +192,32 @@ class snow_vit_entry(TypedDict):
     ip_address: snow_cell_object
     vulnerability: snow_cell_object
 
+
 def snow_grab_vit_api(vits: set[str]):
-    url = (f'https://{SNOW_URL}/api/now/table/sn_vul_detection?sysparm_query=status%3D0%5Evulnerable_item.numberIN='
-            + ','.join(vits)
-            + '&sysparm_display_value=all&sysparm_fields=ip_address%2Cvulnerability%2Ccmdb_ci%2Cvulnerable_item'
+    url = (
+        f"https://{SNOW_URL}/api/now/table/sn_vul_detection?sysparm_query=status%3D0%5Evulnerable_item.numberIN="
+        + ",".join(vits)
+        + "&sysparm_display_value=all&sysparm_fields=ip_address%2Cvulnerability%2Ccmdb_ci%2Cvulnerable_item"
     )
 
     # Set proper headers
-    headers = {"Content-Type":"application/json","Accept":"application/json"}
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
     # Do the HTTP request
-    response = requests.get(url, auth=(SNOW_API_USER, SNOW_API_PASSWORD), headers=headers )
+    response = requests.get(
+        url, auth=(SNOW_API_USER, SNOW_API_PASSWORD), headers=headers
+    )
 
     # Check for HTTP codes other than 200
-    if response.status_code != 200: 
-        print('Status:', response.status_code, 'Headers:', response.headers, 'Error Response:',response.json())
+    if response.status_code != 200:
+        print(
+            "Status:",
+            response.status_code,
+            "Headers:",
+            response.headers,
+            "Error Response:",
+            response.json(),
+        )
         raise LookupError("SNOW API REQUEST FAILED")
 
     # Decode the JSON response into a dictionary and use the data
@@ -225,8 +238,8 @@ def look_up_vits():
     try:
         api_request_response = snow_grab_vit_api(vits)
         # if result has vits
-        if api_request_response and len(api_request_response['result']) > 0:
-            for entry in api_request_response['result']:
+        if api_request_response and len(api_request_response["result"]) > 0:
+            for entry in api_request_response["result"]:
                 entry: snow_vit_entry = entry
                 vits.add(entry["vulnerable_item"]["display_value"])
                 qids.add(entry["vulnerability"]["display_value"])
@@ -435,7 +448,7 @@ def settings_save_config(
     new_scanner_appliance: tk.Listbox,
     new_snow_url: ctk.CTkEntry,
     new_snow_user: ctk.CTkEntry,
-    new_snow_password: ctk.CTkEntry
+    new_snow_password: ctk.CTkEntry,
 ):
     """Function to easily save config file updates from the settings menu"""
     # pylint: disable=global-statement
@@ -461,7 +474,7 @@ def settings_save_config(
             "SNOW_URL": SNOW_URL,
             "SNOW_API_USER": SNOW_API_USER,
             "SNOW_API_PASSWORD": SNOW_API_PASSWORD,
-            "SCAN_LIST": SCAN_LIST
+            "SCAN_LIST": SCAN_LIST,
         }
         dump(CONFIG, config_file, indent=4)
 
@@ -630,7 +643,7 @@ def open_settings():
             scanner_appliance_listbox,
             snow_url_entry,
             snow_api_user_entry,
-            snow_api_password_entry
+            snow_api_password_entry,
         ),
         fg_color=GREEN,
         border_width=2,
@@ -650,7 +663,7 @@ def open_settings():
             scanner_appliance_listbox,
             snow_url_entry,
             snow_api_user_entry,
-            snow_api_password_entry
+            snow_api_password_entry,
         )
         settings_close_popup()
 
@@ -703,7 +716,7 @@ def open_scan_settings():
                 "SNOW_URL": SNOW_URL,
                 "SNOW_API_USER": SNOW_API_USER,
                 "SNOW_API_PASSWORD": SNOW_API_PASSWORD,
-                "SCAN_LIST": SCAN_LIST
+                "SCAN_LIST": SCAN_LIST,
             }
             dump(CONFIG, config_file, indent=4)
 
