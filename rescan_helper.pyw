@@ -245,6 +245,7 @@ def look_up_vits():
     try:
         api_request_response = snow_grab_vit_api(vits)
         # if result has vits
+        vits.clear()
         if api_request_response and len(api_request_response["result"]) > 0:
             for entry in api_request_response["result"]:
                 entry: SnowVitEntry = entry
