@@ -249,10 +249,16 @@ def look_up_vits():
         if api_request_response and len(api_request_response["result"]) > 0:
             for entry in api_request_response["result"]:
                 entry: SnowVitEntry = entry
-                vits.add(entry["vulnerable_item"]["display_value"])
-                qids.add(entry["vulnerability"]["display_value"])
-                ips.add(entry["ip_address"]["display_value"])
-                cis.add(entry["cmdb_ci"]["display_value"])
+                vit = entry["vulnerable_item"]["display_value"]
+                qid = entry["vulnerability"]["display_value"]
+                ip = entry["ip_address"]["display_value"]
+                ci = entry["cmdb_ci"]["display_value"]
+
+                VIT_LIST.append(VitObject(vit, qid, ip, ci))
+                vits.add(vit)
+                qids.add(qid)
+                ips.add(ip)
+                cis.add(ci)
         else:
             print("No vits returned")
 
