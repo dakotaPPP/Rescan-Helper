@@ -26,7 +26,7 @@ if not path.exists(rescan_helper_path + "/config/config.json"):
     if not path.exists(rescan_helper_path):
         makedirs(rescan_helper_path)
 
-    data = {
+    json_data = {
         "API_KEY": "BASIC VXNlcm5hbWU6UGFzc3dvcmQ=",
         "QUALYS_PLATFORM": "YOUR_QUALYS_PLATFORM_HERE",
         "LOGIN_URL": "https://YOUR_LOGIN_URL_HERE",
@@ -43,7 +43,7 @@ if not path.exists(rescan_helper_path + "/config/config.json"):
     }
 
     with open(rescan_helper_path + "/config/config.json", "w", encoding="UTF-8") as f:
-        dump(data, f, indent=4)
+        dump(json_data, f, indent=4)
 
 
 def get_config():
@@ -180,24 +180,31 @@ def launch_scan():
     return 0
 
 
-class snow_cell_object(TypedDict):
+class SnowCellObject(TypedDict):
+    """Helpful class for auto completing of json"""
+
     display_value: str
     link: NotRequired[str]
     value: str
 
 
-class snow_vit_entry(TypedDict):
-    cmdb_ci: snow_cell_object
-    vulnerable_item: snow_cell_object
-    ip_address: snow_cell_object
-    vulnerability: snow_cell_object
+class SnowVitEntry(TypedDict):
+    """Helpful class for auto completing of json"""
+
+    cmdb_ci: SnowCellObject
+    vulnerable_item: SnowCellObject
+    ip_address: SnowCellObject
+    vulnerability: SnowCellObject
 
 
 def snow_grab_vit_api(vits: set[str]):
+    """Api request to SNOW to grab vit info"""
     url = (
-        f"https://{SNOW_URL}/api/now/table/sn_vul_detection?sysparm_query=status%3D0%5Evulnerable_item.numberIN="
+        f"https://{SNOW_URL}/api/now/table/sn_vul_detection?"
+        + "sysparm_query=status%3D0%5Evulnerable_item.numberIN="
         + ",".join(vits)
-        + "&sysparm_display_value=all&sysparm_fields=ip_address%2Cvulnerability%2Ccmdb_ci%2Cvulnerable_item"
+        + "&sysparm_display_value=all&sysparm_fields=ip_address"
+        + "%2Cvulnerability%2Ccmdb_ci%2Cvulnerable_item"
     )
 
     # Set proper headers
@@ -205,7 +212,7 @@ def snow_grab_vit_api(vits: set[str]):
 
     # Do the HTTP request
     response = requests.get(
-        url, auth=(SNOW_API_USER, SNOW_API_PASSWORD), headers=headers
+        url, auth=(SNOW_API_USER, SNOW_API_PASSWORD), headers=headers, timeout=20
     )
 
     # Check for HTTP codes other than 200
@@ -240,7 +247,7 @@ def look_up_vits():
         # if result has vits
         if api_request_response and len(api_request_response["result"]) > 0:
             for entry in api_request_response["result"]:
-                entry: snow_vit_entry = entry
+                entry: SnowVitEntry = entry
                 vits.add(entry["vulnerable_item"]["display_value"])
                 qids.add(entry["vulnerability"]["display_value"])
                 ips.add(entry["ip_address"]["display_value"])
@@ -248,7 +255,7 @@ def look_up_vits():
         else:
             print("No vits returned")
 
-    except Exception as e:
+    except LookupError:
         print("ERROR - Traceback Info:")
         traceback.print_exc()
 
@@ -293,7 +300,8 @@ def add_entry(listbox, entry):
 
 
 def remove_entry(listbox: tk.Listbox):
-    """Takes in whatever the user has selected from a listbox object and deletes the selected rows"""
+    """Takes in whatever the user has selected from a listbox
+    object and deletes the selected rows"""
     selected_items = listbox.curselection()
     for item in selected_items[::-1]:
         listbox.delete(item)
@@ -319,7 +327,8 @@ def open_vits_fixed():
     """
     Opens the vits fixed popup
     Based on a query from the VMDR utilizing the current IPs and QIDs list
-    It checks if the values are now marked as fixed (checks from last 3 days so old records aren't kept)
+    It checks if the values are now marked as fixed
+    (checks from last 3 days so old records aren't kept)
     [Probably should update to check if status = active and is a newer entry]
     """
     # Allows for only 1 popup at a time
@@ -408,10 +417,8 @@ def retrieve_asset_detection(ips: str, qids: str, status: str) -> list[str]:
         return []
 
     result_vits: list[str] = []
-    # take in csv data, idk why I didn't do it this way originally
-    data = response.text
 
-    rows: DictReader = DictReader(data.splitlines())
+    rows: DictReader = DictReader(response.text.splitlines())
 
     for row in rows:
         found_vit_id = get_vit_id(row["IP Address"], "QID-" + row["QID"])
@@ -451,7 +458,7 @@ def settings_save_config(
     new_snow_password: ctk.CTkEntry,
 ):
     """Function to easily save config file updates from the settings menu"""
-    # pylint: disable=global-statement
+    # pylint: disable=global-statement,line-too-long
     global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SNOW_API_USER, SNOW_API_PASSWORD
     with open(
         rescan_helper_path + "/config/config.json", "w", encoding="UTF-8"
@@ -487,6 +494,7 @@ def settings_close_popup():
     SETTINGS_POPUPS.clear()
 
 
+# pylint: disable=too-many-locals,too-many-statements
 def open_settings():
     """
     Opens the settings page where the user can enter info to update the config file
@@ -690,7 +698,7 @@ def scan_settings_close_popup():
     refresh_scan_display()
 
 
-# pylint: disable=too-many-statements
+# pylint: disable=too-many-statements,too-many-locals
 def open_scan_settings():
     """Opens the scan settings window"""
     # pylint: disable=global-variable-not-assigned
