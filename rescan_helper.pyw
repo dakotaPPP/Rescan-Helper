@@ -9,7 +9,8 @@ from csv import DictReader
 from json import load, dump
 from os import path, makedirs, getenv
 import base64
-import ipaddress
+import traceback
+from typing import TypedDict, NotRequired
 
 # third party imports
 import requests
@@ -24,13 +25,25 @@ if not path.exists(rescan_helper_path + "/config/config.json"):
         makedirs(rescan_helper_path + "/config")
     if not path.exists(rescan_helper_path):
         makedirs(rescan_helper_path)
+        
+    data = {
+        "API_KEY": "BASIC VXNlcm5hbWU6UGFzc3dvcmQ=",
+        "QUALYS_PLATFORM": "YOUR_QUALYS_PLATFORM_HERE",
+        "LOGIN_URL": "https://YOUR_LOGIN_URL_HERE",
+        "SNOW_URL": "YOUR_SNOW_URL_HERE",
+        "SNOW_API_USER": "YOUR_SNOW_API_USER_HERE",
+        "SNOW_API_PASSWORD": "YOUR_SNOW_API_PASSWORD_HERE",
+        "SCANNER_APPLIANCE": "scanner1,scanner2,...",
+        "SCAN_LIST": {
+            "CHANGE NAME IN SETTINGS": {
+                "SEARCH_LIST_ID": "ENTER SEARCH LIST",
+                "OP_ID": "ENTER OPTION PROFILE"
+            }
+        }
+    }
 
     with open(rescan_helper_path + "/config/config.json", "w", encoding="UTF-8") as f:
-        # pylint: disable=line-too-long
-        f.write(
-            '{"API_KEY":"BASIC VXNlcm5hbWU6UGFzc3dvcmQ=","QUALYS_PLATFORM":"YOUR_QUALYS_PLATFORM_HERE","LOGIN_URL":"https://YOUR_LOGIN_URL_HERE","SNOW_URL":"YOUR_SNOW_URL_HERE","SCANNER_APPLIANCE":"scanner1,scanner2,...","SCAN_LIST":{"CHANGE NAME IN SETTINGS":{"SEARCH_LIST_ID": "ENTER SEARCH LIST", "OP_ID": "ENTER OPTION PROFILE"}}}'
-        )
-        f.close()
+        dump(data, f, indent=4)
 
 
 def get_config():
@@ -68,6 +81,8 @@ QUALYS_PLATFORM: str = CONFIG["QUALYS_PLATFORM"]
 LOGIN_URL: str = CONFIG["LOGIN_URL"]
 SCANNER_APPLIANCE: str = CONFIG["SCANNER_APPLIANCE"]
 SNOW_URL: str = CONFIG["SNOW_URL"]
+SNOW_API_USER: str = CONFIG["SNOW_API_USER"]
+SNOW_API_PASSWORD: str = CONFIG["SNOW_API_PASSWORD"]
 SCAN_LIST = CONFIG["SCAN_LIST"]
 
 
@@ -164,151 +179,65 @@ def launch_scan():
     print("Scan launched!")
     return 0
 
+class snow_cell_object(TypedDict):
+    display_value: str
+    link: NotRequired[str]
+    value: str
+
+class snow_vit_entry(TypedDict):
+    cmdb_ci: snow_cell_object
+    vulnerable_item: snow_cell_object
+    ip_address: snow_cell_object
+    vulnerability: snow_cell_object
+
+def snow_grab_vit_api(vits: set[str]):
+    url = (f'https://{SNOW_URL}/api/now/table/sn_vul_detection?sysparm_query=status%3D0%5Evulnerable_item.numberIN='
+            + ','.join(vits)
+            + '&sysparm_display_value=all&sysparm_fields=ip_address%2Cvulnerability%2Ccmdb_ci%2Cvulnerable_item'
+    )
+
+    # Set proper headers
+    headers = {"Content-Type":"application/json","Accept":"application/json"}
+
+    # Do the HTTP request
+    response = requests.get(url, auth=(SNOW_API_USER, SNOW_API_PASSWORD), headers=headers )
+
+    # Check for HTTP codes other than 200
+    if response.status_code != 200: 
+        print('Status:', response.status_code, 'Headers:', response.headers, 'Error Response:',response.json())
+        raise LookupError("SNOW API REQUEST FAILED")
+
+    # Decode the JSON response into a dictionary and use the data
+    return response.json()
+
 
 def look_up_vits():
     """Grabs the vits from the vit listbox object"""
-    text = text_area.get("1.0", "end").strip()
-    vits = re.findall(r"[Vv][Ii][Tt]\d{7,8}", text)
-    # pylint: disable=line-too-long
-    url_to_open = (
-        f"https://{SNOW_URL}/now/nav/ui/classic/params/target/sn_vul_detection_list.do%3Fsysparm_query%3Dstatus%253D0%255Evulnerable_item.numberIN"
-        + "%252C".join(vits)
-        + "%26sysparm_first_row%3D1%26sysparm_view%3D"
-    )
-    wb.open(url_to_open)
-    print("VITs looked up")
-
-
-def validate_ip(ip_str: str):
-    """Ensures the input is in valid ip format, if not raise error"""
-    try:
-        ipaddress.ip_address(ip_str)
-    except ValueError as exc:
-        raise ValueError(f"Invalid IP address format: {ip_str}") from exc
-
-
-def validate_ip_bool(ip_str: str):
-    try:
-        ipaddress.ip_address(ip_str)
-        return True
-    except ValueError as exc:
-        return False
-
-
-def cleanup_snow_table_text(
-    scrolled_text_obj: scrolledtext.ScrolledText,
-) -> tuple[list[str], list[str]]:
-    """Helper function that returns the properly formatted text"""
-    text = scrolled_text_obj.get("1.0", "end").split("Integration run\n")
-    if len(text) == 1:
-        raise LookupError(
-            "Error table wasn't copied properly!\nTo add QIDs and IPs with no VIT attached, please use the buttons under the listboxes."
-        )
-
-    # find the custom headers the user is using for their vit detection table
-    # then use this to find QID, VIT, IP, and CI
-    header = text[0].split("Currently in read mode.")[1].split("\n")
-    header = header[3:-1]
-    header.append("Integration run")
-    # trims out text to only contain the rows now
-    text[1] = text[1].replace("OpenSSH", "")
-    text = text[1].replace("\n", "").split("Showing rows")[0].split("Open")
-    text = text[1:]
-    return text, header
-
-
-# pylint: disable=too-many-locals,too-many-statements
-def look_up_qids_and_ips():
-    """
-    Function for the look up qids and ips button
-    Takes in SNOW text the user supplied (hopefully we can deprecate this soon :])
-    """
     # pylint: disable=global-variable-not-assigned
     global VIT_LIST
-    text, header = cleanup_snow_table_text(text_area)
-
-    vits: list[str] = []
-    qids: list[str] = []
-    ips: list[str] = []
-    cis: list[str] = []
+    text = text_area.get("1.0", "end").strip()
+    vits: set[str] = set(re.findall(r"[Vv][Ii][Tt]\d{7,8}", text))
+    qids: set[str] = set()
+    ips: set[str] = set()
+    cis: set[str] = set()
     VIT_LIST.clear()
-    # for each line in the copy paste area, check if VIT, QID, and IP, are present
-    # if so then add VIT to global VIT_LIST
-    # And updated the visual vits, qids, and ips array
-    for entry in text:
-        columns = entry.split("\t")
-        columns.pop(0)
-        if not columns:
-            continue
-        if not columns[-1]:
-            columns.pop(-1)
 
-        first_found = columns[2][:19]
-        last_found = columns[2][19:38]
-        last_element = columns[2][38:]
+    try:
+        api_request_response = snow_grab_vit_api(vits)
+        # if result has vits
+        if api_request_response and len(api_request_response['result']) > 0:
+            for entry in api_request_response['result']:
+                entry: snow_vit_entry = entry
+                vits.add(entry["vulnerable_item"]["display_value"])
+                qids.add(entry["vulnerability"]["display_value"])
+                ips.add(entry["ip_address"]["display_value"])
+                cis.add(entry["cmdb_ci"]["display_value"])
+        else:
+            print("No vits returned")
 
-        try:
-            validate_ip(last_element)
-            columns = (
-                columns[:2]
-                + [first_found]
-                + [last_found]
-                + [""]
-                + [""]
-                + [last_element]
-                + columns[3:]
-            )
-        except ValueError:
-            columns = (
-                columns[:2]
-                + [first_found]
-                + [last_found]
-                + [last_element]
-                + columns[3:]
-            )
-            while not validate_ip_bool(columns[6]):
-                columns = columns[:5] + [""] + columns[5:]
-
-        column_diff = len(columns) - len(header)
-
-        # proof column text likes to use tabs for some reason, and tabs is how we differentiate between columns so we need to consolidate entries
-        if column_diff > 0:
-            proof_index = header.index("Proof")
-            for i in range(column_diff):
-                columns[proof_index] += "\t" + columns[proof_index + 1]
-                columns.pop(proof_index + 1)
-
-        detection_data = {}
-        # pylint: disable=consider-using-enumerate
-        for i in range(len(columns)):
-            detection_data[header[i]] = columns[i]
-
-        vit: str = detection_data["Vulnerable item"]
-        if not vit.startswith("VIT"):
-            print(detection_data)
-            raise LookupError("Error when copying data from SNOW over!")
-
-        qid: str = str(detection_data["Vulnerability"])
-        if not qid.startswith("QID"):
-            print(detection_data)
-            raise LookupError("Error when copying data from SNOW over!")
-
-        ip: str = detection_data["IP address"]
-        validate_ip(ip)
-
-        ci: str = detection_data["Configuration item"]
-
-        VIT_LIST.append(VitObject(vit, qid, ip, ci))
-        vits.append(vit)
-        qids.append(qid)
-        ips.append(ip)
-        cis.append(ci)
-
-    # Gets rid of duplicate values
-    vits = list(set(vits))
-    qids = list(set(qids))
-    ips = list(set(ips))
-    cis = list(set(cis))
+    except Exception as e:
+        print("ERROR - Traceback Info:")
+        traceback.print_exc()
 
     # Opens CA Compatible QIDs
     # pylint: disable=line-too-long
@@ -505,10 +434,12 @@ def settings_save_config(
     new_login_url: ctk.CTkEntry,
     new_scanner_appliance: tk.Listbox,
     new_snow_url: ctk.CTkEntry,
+    new_snow_user: ctk.CTkEntry,
+    new_snow_password: ctk.CTkEntry
 ):
     """Function to easily save config file updates from the settings menu"""
     # pylint: disable=global-statement
-    global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG
+    global API_KEY, QUALYS_PLATFORM, LOGIN_URL, SCANNER_APPLIANCE, SNOW_URL, CONFIG, SNOW_API_USER, SNOW_API_PASSWORD
     with open(
         rescan_helper_path + "/config/config.json", "w", encoding="UTF-8"
     ) as config_file:
@@ -519,6 +450,8 @@ def settings_save_config(
         LOGIN_URL = new_login_url.get()
         SCANNER_APPLIANCE = ",".join(new_scanner_appliance.get(0, "end"))
         SNOW_URL = new_snow_url.get()
+        SNOW_API_USER = new_snow_user.get()
+        SNOW_API_PASSWORD = new_snow_password.get()
 
         CONFIG = {
             "API_KEY": API_KEY,
@@ -526,7 +459,9 @@ def settings_save_config(
             "LOGIN_URL": LOGIN_URL,
             "SCANNER_APPLIANCE": SCANNER_APPLIANCE,
             "SNOW_URL": SNOW_URL,
-            "SCAN_LIST": SCAN_LIST,
+            "SNOW_API_USER": SNOW_API_USER,
+            "SNOW_API_PASSWORD": SNOW_API_PASSWORD,
+            "SCAN_LIST": SCAN_LIST
         }
         dump(CONFIG, config_file, indent=4)
 
@@ -616,8 +551,32 @@ def open_settings():
     snow_url_entry.insert(0, SNOW_URL)
     snow_url_entry.grid(row=4, column=1, padx=10, pady=5)
 
+    snow_api_user_label = ctk.CTkLabel(entries_frame, text="SNOW API User:")
+    snow_api_user_label.grid(row=5, column=0, padx=10)
+    snow_api_user_entry = ctk.CTkEntry(entries_frame, width=300)
+    snow_api_user_entry.insert(0, SNOW_API_USER)
+    snow_api_user_entry.grid(row=5, column=1, padx=10, pady=5)
+
+    snow_api_password_label = ctk.CTkLabel(entries_frame, text="SNOW API Password:")
+    snow_api_password_label.grid(row=6, column=0, padx=10)
+    snow_api_password_entry = ctk.CTkEntry(entries_frame, width=300, show="\u2022")
+    snow_api_password_entry.insert(0, SNOW_API_PASSWORD)
+    snow_api_password_entry.grid(row=6, column=1, padx=10, pady=5)
+
+    toggle_hidden_password_button = ctk.CTkButton(
+        entries_frame,
+        text="👁",
+        command=lambda: toggle_hidden(snow_api_password_entry),
+        fg_color=GREY,
+        border_width=2,
+        border_color=BLACK,
+        hover_color=GREY_DARK,
+        width=30,
+    )
+    toggle_hidden_password_button.grid(row=6, column=2, padx=10)
+
     scanner_appliance_label = ctk.CTkLabel(entries_frame, text="Scanner Appliance:")
-    scanner_appliance_label.grid(row=5, column=0, padx=10)
+    scanner_appliance_label.grid(row=7, column=0, padx=10)
     scanner_appliance_listbox = tk.Listbox(
         entries_frame,
         width=49,
@@ -625,11 +584,11 @@ def open_settings():
         background=GREY,
         foreground=WHITE,
     )
-    scanner_appliance_listbox.grid(row=6, column=1, padx=10, pady=5)
+    scanner_appliance_listbox.grid(row=8, column=1, padx=10, pady=5)
     scanner_appliance_add_entry = ctk.CTkEntry(
         entries_frame, width=300, placeholder_text="Enter scanner appliance name"
     )
-    scanner_appliance_add_entry.grid(row=5, column=1, padx=10, pady=5)
+    scanner_appliance_add_entry.grid(row=7, column=1, padx=10, pady=5)
     scanner_appliance_add_button = ctk.CTkButton(
         entries_frame,
         text="+",
@@ -642,7 +601,7 @@ def open_settings():
         hover_color=GREEN_DARK,
         width=30,
     )
-    scanner_appliance_add_button.grid(row=5, column=2, padx=5, pady=5)
+    scanner_appliance_add_button.grid(row=7, column=2, padx=5, pady=5)
     scanner_appliance_remove_button = ctk.CTkButton(
         entries_frame,
         text="-",
@@ -653,7 +612,7 @@ def open_settings():
         hover_color=RED_DARK,
         width=30,
     )
-    scanner_appliance_remove_button.grid(row=6, column=2, padx=5, pady=5)
+    scanner_appliance_remove_button.grid(row=8, column=2, padx=5, pady=5)
 
     for scanner in SCANNER_APPLIANCE.split(","):
         scanner_appliance_listbox.insert(0, scanner)
@@ -670,6 +629,8 @@ def open_settings():
             login_url_entry,
             scanner_appliance_listbox,
             snow_url_entry,
+            snow_api_user_entry,
+            snow_api_password_entry
         ),
         fg_color=GREEN,
         border_width=2,
@@ -688,6 +649,8 @@ def open_settings():
             login_url_entry,
             scanner_appliance_listbox,
             snow_url_entry,
+            snow_api_user_entry,
+            snow_api_password_entry
         )
         settings_close_popup()
 
@@ -738,7 +701,9 @@ def open_scan_settings():
                 "LOGIN_URL": LOGIN_URL,
                 "SCANNER_APPLIANCE": SCANNER_APPLIANCE,
                 "SNOW_URL": SNOW_URL,
-                "SCAN_LIST": SCAN_LIST,
+                "SNOW_API_USER": SNOW_API_USER,
+                "SNOW_API_PASSWORD": SNOW_API_PASSWORD,
+                "SCAN_LIST": SCAN_LIST
             }
             dump(CONFIG, config_file, indent=4)
 
@@ -956,17 +921,6 @@ button_vits = ctk.CTkButton(
     hover_color=PURPLE_DARK,
 )
 button_vits.grid(row=0, column=0, padx=10, pady=5)
-
-button_qids_ips = ctk.CTkButton(
-    main_button_frame,
-    text="Look up QID(s) and IP(s)",
-    command=look_up_qids_and_ips,
-    fg_color=PURPLE,
-    border_width=2,
-    border_color=BLACK,
-    hover_color=PURPLE_DARK,
-)
-button_qids_ips.grid(row=0, column=1, padx=10)
 
 # Create a frame for the list boxes and their controls
 list_frame = ctk.CTkFrame(root)
