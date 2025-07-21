@@ -201,10 +201,10 @@ def snow_grab_vit_api(vits: set[str]):
     """Api request to SNOW to grab vit info"""
     url = (
         f"https://{SNOW_URL}/api/now/table/sn_vul_detection?"
-        + "sysparm_query=status=0^vulnerable_item.numberIN="
+        + "sysparm_query=status=0^vulnerable_item.numberIN"
         + ",".join(vits)
         + "&sysparm_display_value=all&sysparm_fields=ip_address"
-        + "%2Cvulnerability%2Ccmdb_ci%2Cvulnerable_item"
+        + ",vulnerability,cmdb_ci,vulnerable_item"
     )
 
     # Set proper headers
