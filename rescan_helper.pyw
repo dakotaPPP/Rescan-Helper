@@ -230,13 +230,53 @@ def snow_grab_vit_api(vits: set[str]):
     # Decode the JSON response into a dictionary and use the data
     return response.json()
 
+def snow_grab_vul_api(vuls: set[str]):
+    """Api request to SNOW to grab vits from vuls"""
+    url = (
+        f"https://{SNOW_URL}/api/now/table/sn_vul_m2m_vul_group_item?"
+        + "sysparm_query=sn_vul_vulnerable_item.active=true^sn_vul_vulnerability.numberIN"
+        + ",".join(vuls)
+        + "&sysparm_display_value=true&sysparm_exclude_reference_link=true"
+        + "&sysparm_fields=sn_vul_vulnerable_item"
+    )
+
+    # Set proper headers
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+
+    # Do the HTTP request
+    response = requests.get(
+        url, auth=(SNOW_API_USER, SNOW_API_PASSWORD), headers=headers, timeout=20
+    )
+
+    # Check for HTTP codes other than 200
+    if response.status_code != 200:
+        print(
+            "Status:",
+            response.status_code,
+            "Headers:",
+            response.headers,
+            "Error Response:",
+            response.json(),
+        )
+        raise LookupError("SNOW API REQUEST FAILED")
+
+    # Decode the JSON response into a dictionary and use the data
+    return response.json()
 
 def look_up_vits():
     """Grabs the vits from the vit listbox object"""
     # pylint: disable=global-variable-not-assigned
     global VIT_LIST
     text = text_area.get("1.0", "end").strip()
+
+    vuls: set[str] = set(re.findall(r"[Vv][Uu][Ll]\d{7,8}", text))
     vits: set[str] = set(re.findall(r"[Vv][Ii][Tt]\d{7,8}", text))
+
+    if len(vuls) > 0:
+        api_response = snow_grab_vul_api(vuls)
+        for vit in api_response['result']:
+            vits.add(vit['sn_vul_vulnerable_item'])
+
     qids: set[str] = set()
     ips: set[str] = set()
     cis: set[str] = set()
