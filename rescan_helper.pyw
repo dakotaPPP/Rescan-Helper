@@ -121,7 +121,7 @@ def launch_scan_helper(title, option, appliances, ips) -> int:
 
     if len(ips) == 0:
         return -1
-    url = f"https://qualysapi.{QUALYS_PLATFORM}/api/2.0/fo/scan/"
+    url = f"https://qualysapi.{QUALYS_PLATFORM}/api/3.0/fo/scan/"
 
     payload = {
         "action": "launch",
