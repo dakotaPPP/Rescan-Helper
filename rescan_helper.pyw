@@ -439,7 +439,7 @@ def get_vit_id(ip: str, qid: str) -> str:
 
 def retrieve_asset_detection(ips: str, qids: str, status: str) -> list[str]:
     """Queries the VMDR and returns a list of vit ids that match the specified status"""
-    url = f"https://qualysapi.{QUALYS_PLATFORM}/api/2.0/fo/asset/host/vm/detection/"
+    url = f"https://qualysapi.{QUALYS_PLATFORM}/api/4.0/fo/asset/host/vm/detection/"
     if not ips or not qids or not status:
         print("Error missing parameter(s)!")
         return []
