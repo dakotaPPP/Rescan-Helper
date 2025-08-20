@@ -41,7 +41,7 @@ Finally change the `Scan type:` settings by clicking the purple gear icon to the
 
     The Cloud Agent Manager in Qualys will also open, and in order to easily check if the devices in the VITs have a cloud agent, just `Ctrl + v` into the search bar!
 
-    > *The above step works because the Look up QID(s) and IP(s) button copies the CIs to your clipboard* 
+    > *The above step works because the Look up VIT(s) button copies the CIs to your clipboard* 
 5. Enter your scan title in the `Title:` field
 6. Choose your scan type in the `Scan type:` field
 7. Click `Launch scan`
@@ -65,9 +65,15 @@ Finally change the `Scan type:` settings by clicking the purple gear icon to the
 ---
 ## Extra info
 ### `VIT(s)`, `QID(s)`, and `IP(s)` lists
-1. Sometimes all you have to scan is an IP and not a list of VITs<br />
-In these scenarios you'll want to go to the text box under the `IP(s)` list and click the `Add` button<br />*In theory if you paste all the IPs in the format "ip1, ip2, ip3, ..." then click `Add` the scan should still work however I'd recommend just adding them one by one*<br />
-2. The `Copy` button under all these lists allow for easy copying and pasting of the entire list<br />Note: copying is in format entry1, entry2, entry3, ...
+1. Sometimes all you have to scan is an IP and not a list of VITs
+
+    In these scenarios you'll want to go to the text box under the `IP(s)` list and click the `Add` button
+    
+    *In theory if you paste all the IPs in the format "ip1, ip2, ip3, ..." then click `Add` the scan should still work however I'd recommend just adding them one by one*
+
+2. The `Copy` button under all these lists allow for easy copying and pasting of the entire list
+
+    Note: copying is in format entry1, entry2, entry3, ...
 
 ### Scan type configurations
 | Search List ID | Fields Required |
