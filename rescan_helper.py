@@ -230,6 +230,7 @@ def snow_grab_vit_api(vits: set[str]):
     # Decode the JSON response into a dictionary and use the data
     return response.json()
 
+
 def snow_grab_vul_api(vuls: set[str]):
     """Api request to SNOW to grab vits from vuls"""
     url = (
@@ -263,6 +264,7 @@ def snow_grab_vul_api(vuls: set[str]):
     # Decode the JSON response into a dictionary and use the data
     return response.json()
 
+
 def look_up_vits():
     """Grabs the vits from the vit listbox object"""
     # pylint: disable=global-variable-not-assigned
@@ -274,8 +276,8 @@ def look_up_vits():
 
     if len(vuls) > 0:
         api_response = snow_grab_vul_api(vuls)
-        for vit in api_response['result']:
-            vits.add(vit['sn_vul_vulnerable_item'])
+        for vit in api_response["result"]:
+            vits.add(vit["sn_vul_vulnerable_item"])
 
     qids: set[str] = set()
     ips: set[str] = set()
@@ -1245,7 +1247,7 @@ button_launch_scan = ctk.CTkButton(
 )
 button_launch_scan.grid(row=3, column=1, padx=10, pady=5)
 
-settingsButton = ctk.CTkButton(
+settings_button = ctk.CTkButton(
     root,
     text="⚙️",
     command=open_settings,
@@ -1255,7 +1257,7 @@ settingsButton = ctk.CTkButton(
     hover_color=GREY_DARK,
     width=15,
 )
-settingsButton.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=5)
+settings_button.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=5)
 
 # Run the application
 root.mainloop()
