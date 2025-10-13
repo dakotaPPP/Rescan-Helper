@@ -103,7 +103,7 @@ def update_search_list(input_id: str) -> int:
 
     headers = {"X-Requested-With": "RescanHelperAPI", "Authorization": API_KEY}
 
-    response = requests.post(url, headers=headers, data=payload, timeout=30)
+    response = requests.post(url, headers=headers, data=payload, timeout=60)
 
     if "search list updated successfully" in response.text:
         print("Search list updated!")
@@ -134,7 +134,7 @@ def launch_scan_helper(title, option, appliances, ips) -> int:
 
     headers = {"X-Requested-With": "RescanHelperAPI", "Authorization": API_KEY}
 
-    response = requests.post(url, headers=headers, data=payload, timeout=30)
+    response = requests.post(url, headers=headers, data=payload, timeout=60)
 
     if "New vm scan launched" in response.text:
         return 0
@@ -455,7 +455,7 @@ def retrieve_asset_detection(ips: str, qids: str, status: str) -> list[str]:
 
     headers = {"X-Requested-With": "RescanHelperAPI", "Authorization": API_KEY}
 
-    response = requests.post(url, headers=headers, data=payload, timeout=30)
+    response = requests.post(url, headers=headers, data=payload, timeout=60)
 
     if response.status_code != 200:
         print(
